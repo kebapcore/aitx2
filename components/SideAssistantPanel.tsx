@@ -5,6 +5,7 @@ import IconButton from './IconButton';
 import useSpeechRecognition from '../hooks/useSpeechRecognition'; 
 import GroundingAttribution from './GroundingAttribution';
 import { AUDIO_MIME_TYPES_SUPPORTED } from '../constants';
+import MusicPlayer from './MusicPlayer'; // Import MusicPlayer
 
 interface SideAssistantPanelProps {
   messages: Message[];
@@ -17,6 +18,9 @@ interface SideAssistantPanelProps {
   assistantName: string;
   chatPlaceholder: string;
   activeAssistantType: 'lexi' | 'kebapgpt';
+  isDarkMode: boolean; // For MusicPlayer styling
+  onSetPreviewAsBackgroundMusic: (url: string) => void; // For MusicPlayer preview action
+  currentBackgroundMusicUrl?: string; // For MusicPlayer preview state
 }
 
 const IconBase: React.FC<{children: React.ReactNode; className?: string}> = ({ children, className="" }) => <div className={`w-5 h-5 ${className}`}>{children}</div>;
@@ -41,7 +45,10 @@ const SideAssistantPanel: React.FC<SideAssistantPanelProps> = ({
     onRejectAction,
     assistantName,
     chatPlaceholder,
-    activeAssistantType
+    activeAssistantType,
+    isDarkMode,
+    onSetPreviewAsBackgroundMusic,
+    currentBackgroundMusicUrl,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -191,8 +198,18 @@ const SideAssistantPanel: React.FC<SideAssistantPanelProps> = ({
                     <span className="ml-2 truncate">Attached: {msg.attachedAudioInfo.name} ({msg.attachedAudioInfo.type})</span>
                 </div>
               )}
-              <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{msg.text}</p>
+              {msg.text && <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{msg.text}</p>}
               
+              {(msg.musicPlaylist || msg.musicPreview) && (
+                <MusicPlayer
+                    playlist={msg.musicPlaylist}
+                    preview={msg.musicPreview}
+                    isDarkMode={isDarkMode}
+                    onSetPreviewAsBackgroundMusic={onSetPreviewAsBackgroundMusic}
+                    currentBackgroundMusicUrl={currentBackgroundMusicUrl}
+                />
+              )}
+
               {msg.sender === 'ai' && msg.actionCommand?.type === 'regenerate' && msg.isActionPending && (
                 <div className="mt-2">
                   <button

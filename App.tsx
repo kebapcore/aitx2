@@ -26,7 +26,8 @@ import {
     ThinkingPerformance,
     AudioAttachment,
     GroundingChunk,
-    ANONMUSIC_BASE_URL
+    MusicPlaylistItem,
+    MusicPreviewItem
 } from './types';
 import { 
     APP_VERSION, 
@@ -45,14 +46,21 @@ import useSpeechSynthesis from './hooks/useSpeechSynthesis';
 const parseAssistantResponse = (responseText: string): ParsedAssistantResponse => {
   let processedText = responseText;
   const actionCommandRegex = /\{(regenerate|append):([\s\S]*?)\}/s;
-  // Regex for settings commands - ensure payload doesn't greedily consume other commands.
-  // Match content that is not '{' or '}' until the closing '}'
   const settingsCommandRegex = /\{(theme|music|bg):([^\{\}]*?)\}/g; 
   const metadataRegex = /\{metadata:([\s\S]*?)\}/s;
+  
+  // Music command regexes
+  // [msX:URL|Optional Title]
+  const musicPlaylistRegex = /\[ms(\d+):(.+?)(?:\|(.+?))?\]/g;
+  // [trymusic:URL, Title] - ensure title is not greedy and stops at closing bracket
+  const musicPreviewRegex = /\[trymusic:(.+?),\s*([^\]]+?)\]/g;
+
 
   let actionCommand: LexiActionCommand | null = null;
   const settingsCommands: SettingsCommand[] = [];
   let metadataText: string | null = null;
+  const musicPlaylist: MusicPlaylistItem[] = [];
+  let musicPreview: MusicPreviewItem | null = null;
 
   // 1. Extract Action Command
   const actionMatch = processedText.match(actionCommandRegex);
@@ -66,9 +74,7 @@ const parseAssistantResponse = (responseText: string): ParsedAssistantResponse =
   }
 
   // 2. Extract Settings Commands
-  // We need to remove settings commands from processedText as we find them
-  // To do this safely, we can build a new string or replace them one by one from the original and update processedText
-  let tempTextForSettingsExtraction = responseText; // Use original to find all commands
+  let tempTextForSettingsExtraction = responseText; 
   let settingsMatch;
   while ((settingsMatch = settingsCommandRegex.exec(tempTextForSettingsExtraction)) !== null) {
     settingsCommands.push({
@@ -76,15 +82,12 @@ const parseAssistantResponse = (responseText: string): ParsedAssistantResponse =
       payload: settingsMatch[2],
       originalCommandString: settingsMatch[0],
     });
-    // Remove this specific found command from processedText if it's there
     if (processedText.includes(settingsMatch[0])) {
         processedText = processedText.replace(settingsMatch[0], '');
     }
   }
   
   // 3. Extract Metadata
-  // Match metadata on the potentially already modified processedText (if metadata is not part of action/settings payload)
-  // Or better, match on original and remove if still present in processedText
   const metadataMatch = responseText.match(metadataRegex); 
   if (metadataMatch) {
     metadataText = metadataMatch[1].trim();
@@ -92,10 +95,47 @@ const parseAssistantResponse = (responseText: string): ParsedAssistantResponse =
         processedText = processedText.replace(metadataMatch[0], '');
     }
   }
+
+  // 4. Extract Music Playlist Commands
+  let playlistMatch;
+  while ((playlistMatch = musicPlaylistRegex.exec(responseText)) !== null) {
+      musicPlaylist.push({
+          id: `ms${playlistMatch[1]}`, // Store with "ms" prefix for clarity if needed
+          url: playlistMatch[2].trim(),
+          title: playlistMatch[3] ? playlistMatch[3].trim() : undefined,
+      });
+      processedText = processedText.replace(playlistMatch[0], '');
+  }
+  // Sort playlist items by their number (X in msX)
+  if (musicPlaylist.length > 0) {
+    musicPlaylist.sort((a, b) => {
+        const numA = parseInt(a.id.substring(2));
+        const numB = parseInt(b.id.substring(2));
+        return numA - numB;
+    });
+  }
+
+
+  // 5. Extract Music Preview Command (assumes only one preview command per response for simplicity)
+  const previewMatch = musicPreviewRegex.exec(responseText);
+  if (previewMatch) {
+      musicPreview = {
+          url: previewMatch[1].trim(),
+          title: previewMatch[2].trim(),
+      };
+      processedText = processedText.replace(previewMatch[0], '');
+  }
   
   const displayText = processedText.trim();
 
-  return { displayText, actionCommand, settingsCommands, metadataText };
+  return { 
+      displayText, 
+      actionCommand, 
+      settingsCommands, 
+      metadataText,
+      musicPlaylist: musicPlaylist.length > 0 ? musicPlaylist : undefined,
+      musicPreview: musicPreview || undefined,
+    };
 };
 
 
@@ -125,37 +165,6 @@ const createNewTab = (
         aiHistory: [],
     };
 };
-
-async function fetchWithRetries(url: string, retries = 2, initialDelay = 500): Promise<Response> {
-  let attempt = 0;
-  let delay = initialDelay;
-  while (attempt <= retries) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) {
-        return response; // Successful fetch
-      }
-      // Handle non-ok responses (e.g., 404, 500)
-      if (attempt === retries) {
-        return response; // Return the last failed response if all retries are exhausted
-      }
-      console.warn(`AnonMusic API fetch failed (status: ${response.status} ${response.statusText}), attempt ${attempt + 1}/${retries + 1}. Retrying in ${delay}ms...`);
-    } catch (error) {
-      // Handle network errors (e.g., server down, CORS issue if not caught by browser first as "TypeError")
-      if (attempt === retries) {
-        throw error; // Rethrow the last error if all retries are exhausted
-      }
-      console.warn(`AnonMusic API fetch failed (network error), attempt ${attempt + 1}/${retries + 1}. Retrying in ${delay}ms...`, error);
-    }
-    
-    await new Promise(resolve => setTimeout(resolve, delay));
-    attempt++;
-    delay *= 2; // Exponential backoff
-  }
-  // This line should ideally not be reached if the loop logic is correct.
-  // It acts as a fallback for an unexpected state.
-  throw new Error("AnonMusic API fetch failed after multiple retries (unexpected state).");
-}
 
 
 const App: React.FC = () => {
@@ -383,6 +392,19 @@ const App: React.FC = () => {
     });
   };
 
+  const handleSetPreviewAsBackgroundMusic = (url: string) => {
+    setAppState(prev => {
+        if (!prev) return null;
+        return {
+            ...prev,
+            editorSettings: {
+                ...prev.editorSettings,
+                backgroundMusicUrl: url,
+                isMusicPlaying: true,
+            }
+        };
+    });
+  };
 
   const handleAddNewTab = useCallback(() => {
     setAppState(prev => {
@@ -486,18 +508,19 @@ const App: React.FC = () => {
 
     let musicApiContext = "";
     try {
-        const response = await fetchWithRetries(ANONMUSIC_API_URL); 
+        const response = await fetch(ANONMUSIC_API_URL);
         if (response.ok) {
             const musicData = await response.json();
+            // Ensure musicData is an array before stringifying
             const contextString = Array.isArray(musicData) ? JSON.stringify(musicData) : JSON.stringify([]);
             musicApiContext = `\n\nAvailable Music from AnonMusic API (use these for music requests if applicable, prefix 'audioPath' and 'imagePath' with "${ANONMUSIC_BASE_PATH_URL}"):\n---\n${contextString}\n---\n`;
         } else {
-            musicApiContext = `\n\n(Could not fetch music list from AnonMusic API after retries: ${response.status} ${response.statusText})\n`;
+            musicApiContext = `\n\n(Could not fetch music list from AnonMusic API: ${response.statusText})\n`;
         }
     } catch (apiError) {
-        console.warn("Error fetching from AnonMusic API after retries:", apiError);
+        console.warn("Error fetching from AnonMusic API:", apiError);
         const errorMessageContent = apiError instanceof Error ? apiError.message : String(apiError);
-        musicApiContext = `\n\n(Error fetching music list from AnonMusic API after retries: ${errorMessageContent})\n`;
+        musicApiContext = `\n\n(Error fetching music list from AnonMusic API: ${errorMessageContent})\n`;
     }
 
     const fullPromptForAssistant = `User's current text:\n---\n${activeTab.textContent.trim() || "(empty)"}\n---\n${musicApiContext}\nUser's message: "${userMessageText}"`;
@@ -548,7 +571,7 @@ const App: React.FC = () => {
                 } : null);
             }
 
-            const { displayText, actionCommand, settingsCommands, metadataText } = parseAssistantResponse(fullResponseText);
+            const { displayText, actionCommand, settingsCommands, metadataText, musicPlaylist, musicPreview } = parseAssistantResponse(fullResponseText);
             
             // Apply settings commands immediately
             if (settingsCommands.length > 0) {
@@ -595,13 +618,15 @@ const App: React.FC = () => {
                     assistantMessages: t.assistantMessages.map(m => 
                         m.id === assistantMessageId ? {
                             ...m, 
-                            text: displayText || (actionCommand ? `${currentAssistant === 'kebapgpt' ? 'KebapGPT bir değişiklik öneriyor.' : 'Lexi suggests a change.'} You can preview it.` : (settingsCommands.length > 0 ? `${currentAssistant === 'kebapgpt' ? 'Ayarlar güncellendi kanka!' : 'Settings updated!'}` : `(${currentAssistant === 'kebapgpt' ? 'KebapGPT bir şey demedi' : "Assistant's response was empty"})`)),
+                            text: displayText || (actionCommand ? `${currentAssistant === 'kebapgpt' ? 'KebapGPT bir değişiklik öneriyor.' : 'Lexi suggests a change.'} You can preview it.` : (settingsCommands.length > 0 ? `${currentAssistant === 'kebapgpt' ? 'Ayarlar güncellendi kanka!' : 'Settings updated!'}` : (musicPlaylist || musicPreview ? '' : `(${currentAssistant === 'kebapgpt' ? 'KebapGPT bir şey demedi' : "Assistant's response was empty"})`))),
                             actionCommand, 
                             settingsCommands: settingsCommands.length > 0 ? settingsCommands : null,
                             metadataText,
                             isActionPending: !!actionCommand,
                             assistant: currentAssistant,
                             groundingChunks: accumulatedGroundingChunks.length > 0 ? [...accumulatedGroundingChunks] : undefined,
+                            musicPlaylist: musicPlaylist,
+                            musicPreview: musicPreview,
                         } : m
                     )
                 } : t)
@@ -930,6 +955,9 @@ const App: React.FC = () => {
                     assistantName={assistantName}
                     chatPlaceholder={chatPlaceholder}
                     activeAssistantType={activeAssistantType}
+                    isDarkMode={currentThemeDef.isDark}
+                    onSetPreviewAsBackgroundMusic={handleSetPreviewAsBackgroundMusic}
+                    currentBackgroundMusicUrl={appState.editorSettings.backgroundMusicUrl}
                     />
                 </div>
             )}
