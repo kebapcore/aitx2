@@ -26,6 +26,13 @@ export type AssistantType = 'lexi' | 'kebapgpt';
 
 export type ThinkingPerformance = 'default' | 'fastest';
 
+export interface CustomAiProfile {
+  id: string;
+  name: string;
+  modelName: string;
+  systemInstruction: string;
+}
+
 export interface EditorSettings {
   theme: Theme; 
   backgroundImageUrl: string;
@@ -35,6 +42,10 @@ export interface EditorSettings {
   isAssistantPanelVisible?: boolean;
   activeAssistant: AssistantType;
   thinkingPerformance: ThinkingPerformance;
+  customModelName?: string; // For Developer Settings
+  customSystemInstruction?: string; // For Developer Settings
+  // customAiProfiles?: CustomAiProfile[]; // Future: For storing multiple AI personalities
+  // activeCustomAiProfileId?: string; // Future
 }
 
 export interface TextPromptRecord {
@@ -109,25 +120,24 @@ export interface SettingsCommand {
 
 export interface GroundingChunk {
   web?: {
-    uri?: string; // Made optional
-    title?: string; // Made optional
+    uri?: string; 
+    title?: string; 
   };
   retrievedContext?: { 
     uri?: string;
     title?: string;
   };
-  // Add other grounding source types if necessary based on API response
 }
 
 export interface AudioAttachment {
   file: File;
   name: string;
   type: string; // MIME type
-  base64Data?: string; // Optional, might be loaded on demand
+  base64Data?: string; 
 }
 
 export interface MusicPlaylistItem {
-  id: string; // Unique ID for the playlist item, can be msX
+  id: string; 
   url: string;
   title?: string;
 }
@@ -143,14 +153,14 @@ export interface Message {
   text: string; 
   timestamp: number;
   actionCommand?: LexiActionCommand | null; 
-  settingsCommands?: SettingsCommand[] | null; // For AI to change settings
+  settingsCommands?: SettingsCommand[] | null; 
   metadataText?: string | null; 
   isActionPending?: boolean; 
   isActionApplied?: boolean; 
   isActionRejected?: boolean; 
   assistant?: AssistantType;
   groundingChunks?: GroundingChunk[];
-  attachedAudioInfo?: { name: string; type: string }; // For display on user messages
+  attachedAudioInfo?: { name: string; type: string }; 
   musicPlaylist?: MusicPlaylistItem[];
   musicPreview?: MusicPreviewItem;
 }
@@ -183,10 +193,16 @@ export interface AnonMusicTrack {
   id: string;
   name: string;
   artist: string;
-  audioPath: string; // Relative path
-  imagePath: string; // Relative path
-  artistImagePath: string; // Relative path
+  audioPath: string; 
+  imagePath: string; 
+  artistImagePath: string; 
   plays: number;
 }
+
+// Shared type for context menu items, usable by Toolbar's New Tab menu and editor's context menu
+export type ContextMenuItemWithIcon =
+  | { isSeparator: true; label?: undefined; action?: undefined; icon?: undefined; disabled?: undefined; }
+  | { isSeparator?: false; label: string; action: () => void; icon?: React.ReactNode; disabled?: boolean; };
+
 
 export const ANONMUSIC_BASE_URL = "https://anonmusic.glitch.me";

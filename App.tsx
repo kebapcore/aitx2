@@ -8,36 +8,23 @@ import SideAssistantPanel from './components/SideAssistantPanel';
 import Modal from './components/Modal';
 import SettingsModal from './components/SettingsModal';
 import LoadingSpinner from './components/LoadingSpinner';
+import IconButton from './components/IconButton'; 
+import ContextMenu from './components/ContextMenu';
+
 
 import { 
-    AiTextFile, 
-    EditorSettings, 
-    Theme, 
-    AiHistoryRecord, 
-    Message, 
-    LexiActionCommand, 
-    SettingsCommand,
-    ParsedAssistantResponse,
-    AssistantInteractionRecord,
-    AudioAnalysisRecord,
-    AppState,
-    TabState,
-    AssistantType,
-    ThinkingPerformance,
-    AudioAttachment,
-    GroundingChunk,
-    MusicPlaylistItem,
-    MusicPreviewItem
+    AiTextFile, EditorSettings, Theme, AiHistoryRecord, Message, 
+    LexiActionCommand, SettingsCommand, ParsedAssistantResponse,
+    AssistantInteractionRecord, AudioAnalysisRecord, AppState, TabState,
+    AssistantType, ThinkingPerformance, AudioAttachment, GroundingChunk,
+    MusicPlaylistItem, MusicPreviewItem, ContextMenuItemWithIcon
 } from './types';
 import { 
-    APP_VERSION, 
-    DEFAULT_EDITOR_SETTINGS,
-    THEME_DEFINITIONS, 
-    LOCALSTORAGE_APP_STATE_KEY,
-    LOCALSTORAGE_LAUNCHED_BEFORE_KEY,
-    GET_STARTED_MARKDOWN_CONTENT,
-    ANONMUSIC_API_URL,
-    ANONMUSIC_BASE_PATH_URL
+    APP_VERSION, DEFAULT_EDITOR_SETTINGS, THEME_DEFINITIONS, 
+    LOCALSTORAGE_APP_STATE_KEY, LOCALSTORAGE_LAUNCHED_BEFORE_KEY,
+    GET_STARTED_MARKDOWN_CONTENT, ANONMUSIC_API_URL, ANONMUSIC_BASE_PATH_URL,
+    ABOUT_PAGE_MARKDOWN_CONTENT, AI_TOOLS_GUIDE_MARKDOWN_CONTENT,
+    A_SAMPLE_STORY_MARKDOWN_CONTENT, USEFUL_LINKS_MARKDOWN_CONTENT
 } from './constants';
 import { initializeAi, isAiInitialized, sendMessageToAssistantStream, sendAudioAndPromptToAssistantStream, resetAssistantChat } from './services/geminiService';
 import { GenerateContentResponse } from '@google/genai'; 
@@ -48,13 +35,8 @@ const parseAssistantResponse = (responseText: string): ParsedAssistantResponse =
   const actionCommandRegex = /\{(regenerate|append):([\s\S]*?)\}/s;
   const settingsCommandRegex = /\{(theme|music|bg):([^\{\}]*?)\}/g; 
   const metadataRegex = /\{metadata:([\s\S]*?)\}/s;
-  
-  // Music command regexes
-  // [msX:URL|Optional Title]
   const musicPlaylistRegex = /\[ms(\d+):(.+?)(?:\|(.+?))?\]/g;
-  // [trymusic:URL, Title] - ensure title is not greedy and stops at closing bracket
   const musicPreviewRegex = /\[trymusic:(.+?),\s*([^\]]+?)\]/g;
-
 
   let actionCommand: LexiActionCommand | null = null;
   const settingsCommands: SettingsCommand[] = [];
@@ -62,7 +44,6 @@ const parseAssistantResponse = (responseText: string): ParsedAssistantResponse =
   const musicPlaylist: MusicPlaylistItem[] = [];
   let musicPreview: MusicPreviewItem | null = null;
 
-  // 1. Extract Action Command
   const actionMatch = processedText.match(actionCommandRegex);
   if (actionMatch) {
     actionCommand = {
@@ -73,7 +54,6 @@ const parseAssistantResponse = (responseText: string): ParsedAssistantResponse =
     processedText = processedText.replace(actionMatch[0], '');
   }
 
-  // 2. Extract Settings Commands
   let tempTextForSettingsExtraction = responseText; 
   let settingsMatch;
   while ((settingsMatch = settingsCommandRegex.exec(tempTextForSettingsExtraction)) !== null) {
@@ -87,7 +67,6 @@ const parseAssistantResponse = (responseText: string): ParsedAssistantResponse =
     }
   }
   
-  // 3. Extract Metadata
   const metadataMatch = responseText.match(metadataRegex); 
   if (metadataMatch) {
     metadataText = metadataMatch[1].trim();
@@ -96,48 +75,32 @@ const parseAssistantResponse = (responseText: string): ParsedAssistantResponse =
     }
   }
 
-  // 4. Extract Music Playlist Commands
   let playlistMatch;
   while ((playlistMatch = musicPlaylistRegex.exec(responseText)) !== null) {
       musicPlaylist.push({
-          id: `ms${playlistMatch[1]}`, // Store with "ms" prefix for clarity if needed
+          id: `ms${playlistMatch[1]}`, 
           url: playlistMatch[2].trim(),
           title: playlistMatch[3] ? playlistMatch[3].trim() : undefined,
       });
       processedText = processedText.replace(playlistMatch[0], '');
   }
-  // Sort playlist items by their number (X in msX)
   if (musicPlaylist.length > 0) {
-    musicPlaylist.sort((a, b) => {
-        const numA = parseInt(a.id.substring(2));
-        const numB = parseInt(b.id.substring(2));
-        return numA - numB;
-    });
+    musicPlaylist.sort((a, b) => parseInt(a.id.substring(2)) - parseInt(b.id.substring(2)));
   }
 
-
-  // 5. Extract Music Preview Command (assumes only one preview command per response for simplicity)
   const previewMatch = musicPreviewRegex.exec(responseText);
   if (previewMatch) {
-      musicPreview = {
-          url: previewMatch[1].trim(),
-          title: previewMatch[2].trim(),
-      };
+      musicPreview = { url: previewMatch[1].trim(), title: previewMatch[2].trim() };
       processedText = processedText.replace(previewMatch[0], '');
   }
   
   const displayText = processedText.trim();
-
   return { 
-      displayText, 
-      actionCommand, 
-      settingsCommands, 
-      metadataText,
+      displayText, actionCommand, settingsCommands, metadataText,
       musicPlaylist: musicPlaylist.length > 0 ? musicPlaylist : undefined,
       musicPreview: musicPreview || undefined,
     };
 };
-
 
 const createNewTab = (
     activeAssistant: AssistantType,
@@ -146,124 +109,215 @@ const createNewTab = (
     type: 'text' = 'text'
 ): TabState => {
     let introText = `Welcome to your new tab${title !== "Untitled" ? `: "${title}"` : ""}! I'm Lexi. How can I help you here?`;
+    if (content) { // If content is pre-filled, change intro message
+      introText = `This tab "${title}" has been opened. I'm Lexi. How can I help you with this content?`;
+    }
     if (activeAssistant === 'kebapgpt') {
-        introText = `Yeni sekmeye hoş geldin kanka${title !== "Untitled" ? `: "${title}"` : ""}! Ben KebapGPT. Ne lazım koçum?`;
+        introText = content 
+          ? `"${title}" sekmesi açıldı kanka. Ben KebapGPT. Bu içerikle ne yapalım?`
+          : `Yeni sekmeye hoş geldin kanka${title !== "Untitled" ? `: "${title}"` : ""}! Ben KebapGPT. Ne lazım koçum?`;
     }
 
     return {
-        id: uuidv4(),
-        title,
-        type,
-        textContent: content,
+        id: uuidv4(), title, type, textContent: content,
         assistantMessages: [{ 
-            id: `assistant-intro-tab-${Date.now()}`, 
-            sender: 'ai', 
-            text: introText, 
-            timestamp: Date.now(),
-            assistant: activeAssistant,
+            id: `assistant-intro-tab-${Date.now()}`, sender: 'ai', text: introText, 
+            timestamp: Date.now(), assistant: activeAssistant,
         }],
         aiHistory: [],
     };
 };
 
+// Context Menu Icons
+const IconWrapperSmall: React.FC<{children: React.ReactNode; className?: string}> = ({ children, className="w-4 h-4" }) => <div className={className}>{children}</div>;
+const PasteIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" /></svg></IconWrapperSmall>;
+const SelectAllIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 3" d="M9 4.5h6.75a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 17.25V6.75A2.25 2.25 0 016.75 4.5H9z" /></svg></IconWrapperSmall>;
+const TogglePreviewIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></IconWrapperSmall>;
+const ExtendIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9m-9 7.5v4.5m0-4.5h4.5m-4.5 0L9 15m11.25 0v4.5m0-4.5h-4.5m4.5 0L15 15" /></svg></IconWrapperSmall>;
+const SummarizeIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M12 17.25h8.25" /></svg></IconWrapperSmall>;
+const MarkdownIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 00-2.25 2.25v6" /></svg></IconWrapperSmall>;
+const FeedbackIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8.25V4.5m0 3.75c-.621 0-1.125.504-1.125 1.125v3.75c0 .621.504 1.125 1.125 1.125h.008c.621 0 1.125-.504 1.125-1.125v-3.75c0-.621-.504-1.125-1.125-1.125H12zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></IconWrapperSmall>;
+const CopyIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125V7.5m0 4.125c0 .621.504 1.125 1.125 1.125h5.25c.621 0 1.125-.504 1.125-1.125V7.5m-6.375 1.5H6.75" /></svg></IconWrapperSmall>;
+const CutIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M7.848 8.25l1.536.887M7.848 8.25a3 3 0 11-5.196-3 3 3 0 015.196 3zm1.536.887a2.167 2.167 0 01-2.434 2.434m0 0a2.167 2.167 0 01-2.434-2.434m2.434 2.434L9 12m6-3.75l-1.536.887M16.152 8.25a3 3 0 11-5.196-3 3 3 0 015.196 3zm-1.536.887a2.167 2.167 0 01-2.434 2.434m0 0a2.167 2.167 0 01-2.434-2.434m2.434 2.434L15 12M9 12l6 3.75m-6-3.75L3 15.75M9 12l6-3.75m-6 3.75L3 8.25" /></svg></IconWrapperSmall>;
+const EyeIcon = () => <div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></div>;
+const EyeSlashIcon = () => <div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.574M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg></div>;
+
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState | null>(null);
   const [isLoadingState, setIsLoadingState] = useState<boolean>(true);
-  
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
   const [isApiKeySet, setIsApiKeySet] = useState<boolean>(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState<boolean>(false);
   const [devApiKeyInput, setDevApiKeyInput] = useState<string>('');
   const [isDevApiKeyLoading, setIsDevApiKeyLoading] = useState<boolean>(false);
-
   const [isAssistantTyping, setIsAssistantTyping] = useState<boolean>(false);
   const { speak, cancel: cancelSpeech, isSupported: ttsSupported } = useSpeechSynthesis();
   const [isMarkdownPreviewActive, setIsMarkdownPreviewActive] = useState<boolean>(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const textEditorRef = useRef<HTMLTextAreaElement>(null); 
+  const [isFullScreenMode, setIsFullScreenMode] = useState<boolean>(false);
+
+  const [editorContextMenu, setEditorContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    items: ContextMenuItemWithIcon[];
+  } | null>(null);
+
 
   useEffect(() => {
-    if (initializeAi()) {
-        setIsApiKeySet(true);
-    } else {
+    if (initializeAi()) setIsApiKeySet(true);
+    else {
         const devKey = localStorage.getItem('GEMINI_API_KEY_DEV');
-        if (devKey) {
-             if (initializeAi()) setIsApiKeySet(true); 
-        }
+        if (devKey && initializeAi()) setIsApiKeySet(true); 
     }
+    loadStateFromLocalStorage();
+    setIsLoadingState(false);
+    
+    const handleGlobalClick = () => {
+        if (editorContextMenu?.visible) {
+            setEditorContextMenu(null);
+        }
+    };
+    window.addEventListener('click', handleGlobalClick);
 
+    return () => {
+        window.removeEventListener('click', handleGlobalClick);
+    };
+  }, [editorContextMenu?.visible]);
+
+
+  const handleTogglePreview = useCallback(() => setIsMarkdownPreviewActive(prev => !prev), []);
+  const handleToggleAssistant = useCallback(() => setAppState(prev => prev ? { ...prev, editorSettings: { ...prev.editorSettings, activeAssistant: prev.editorSettings.activeAssistant === 'lexi' ? 'kebapgpt' : 'lexi' }, ...(() => { resetAssistantChat(); return {}; })() } : null), []);
+  const handleToggleAssistantPanelVisibility = useCallback(() => setAppState(prev => prev ? { ...prev, editorSettings: { ...prev.editorSettings, isAssistantPanelVisible: !(prev.editorSettings.isAssistantPanelVisible ?? true) } } : null), []);
+  
+  const handleAddNewTab = useCallback((contentType?: 'about' | 'get-started' | 'ai-tools' | 'story' | 'links') => {
+    setAppState(prev => {
+      if (!prev) return null;
+      let title = "Untitled";
+      let content = "";
+      switch (contentType) {
+          case 'about': title = "About"; content = ABOUT_PAGE_MARKDOWN_CONTENT; break;
+          case 'get-started': title = "Get Started"; content = GET_STARTED_MARKDOWN_CONTENT; break;
+          case 'ai-tools': title = "AI Tools Guide"; content = AI_TOOLS_GUIDE_MARKDOWN_CONTENT; break;
+          case 'story': title = "Sample Story"; content = A_SAMPLE_STORY_MARKDOWN_CONTENT; break;
+          case 'links': title = "Useful Links"; content = USEFUL_LINKS_MARKDOWN_CONTENT; break;
+      }
+      const newTab = createNewTab(prev.editorSettings.activeAssistant, title, content);
+      resetAssistantChat(); 
+      return { ...prev, tabs: [...prev.tabs, newTab], activeTabId: newTab.id };
+    });
+  }, []);
+
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+        const activeEl = document.activeElement as HTMLElement;
+        const isAnyInputFocused = activeEl && (
+            activeEl.tagName === 'INPUT' ||
+            activeEl.tagName === 'TEXTAREA' ||
+            activeEl.isContentEditable 
+        );
+
+        if (event.key === 'Escape') {
+            if (isAnyInputFocused && typeof activeEl.blur === 'function') {
+                activeEl.blur();
+                event.preventDefault();
+                return; 
+            }
+            if (isFullScreenMode) {
+                setIsFullScreenMode(false);
+                event.preventDefault();
+            }
+            if (editorContextMenu?.visible) {
+                setEditorContextMenu(null);
+                event.preventDefault();
+            }
+            return;
+        }
+
+        if (event.key === 'F11') {
+            event.preventDefault();
+            setIsFullScreenMode(prev => !prev);
+            return;
+        }
+
+        if (isAnyInputFocused) {
+            return; 
+        }
+
+        switch (event.key.toUpperCase()) {
+            case 'R':
+                event.preventDefault();
+                handleTogglePreview();
+                break;
+            case 'A':
+                event.preventDefault();
+                handleToggleAssistant();
+                break;
+            case 'S':
+                event.preventDefault();
+                handleToggleAssistantPanelVisibility();
+                break;
+            case 'T':
+                event.preventDefault();
+                handleAddNewTab();
+                break;
+        }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+        window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, [
+      isFullScreenMode, 
+      editorContextMenu?.visible, 
+      handleTogglePreview, 
+      handleToggleAssistant, 
+      handleToggleAssistantPanelVisibility, 
+      handleAddNewTab
+    ]);
+
+
+  const loadStateFromLocalStorage = () => {
     const storedAppState = localStorage.getItem(LOCALSTORAGE_APP_STATE_KEY);
     if (storedAppState) {
       try {
         const parsedState = JSON.parse(storedAppState) as AppState;
         if (parsedState.tabs && parsedState.editorSettings) {
-          const validTheme = THEME_DEFINITIONS[parsedState.editorSettings.theme] 
-            ? parsedState.editorSettings.theme 
-            : DEFAULT_EDITOR_SETTINGS.theme;
-          const validAssistant = ['lexi', 'kebapgpt'].includes(parsedState.editorSettings.activeAssistant)
-            ? parsedState.editorSettings.activeAssistant
-            : DEFAULT_EDITOR_SETTINGS.activeAssistant;
-          const validThinkingPerformance = ['default', 'fastest'].includes(parsedState.editorSettings.thinkingPerformance)
-            ? parsedState.editorSettings.thinkingPerformance
-            : DEFAULT_EDITOR_SETTINGS.thinkingPerformance;
-
-
           setAppState({
             ...parsedState,
             editorSettings: { 
               ...DEFAULT_EDITOR_SETTINGS, 
               ...parsedState.editorSettings,
-              theme: validTheme,
-              activeAssistant: validAssistant as AssistantType,
-              thinkingPerformance: validThinkingPerformance as ThinkingPerformance,
+              theme: THEME_DEFINITIONS[parsedState.editorSettings.theme] ? parsedState.editorSettings.theme : DEFAULT_EDITOR_SETTINGS.theme,
+              activeAssistant: ['lexi', 'kebapgpt'].includes(parsedState.editorSettings.activeAssistant) ? parsedState.editorSettings.activeAssistant : DEFAULT_EDITOR_SETTINGS.activeAssistant,
+              thinkingPerformance: ['default', 'fastest'].includes(parsedState.editorSettings.thinkingPerformance) ? parsedState.editorSettings.thinkingPerformance : DEFAULT_EDITOR_SETTINGS.thinkingPerformance,
+              customModelName: parsedState.editorSettings.customModelName || '',
+              customSystemInstruction: parsedState.editorSettings.customSystemInstruction || '',
              }
           });
-        } else {
-          loadDefaultState(); 
-        }
+        } else loadDefaultState();
       } catch (e) {
         console.error("Failed to parse stored app state, resetting:", e);
         localStorage.removeItem(LOCALSTORAGE_APP_STATE_KEY);
         loadDefaultState();
       }
-    } else {
-      loadDefaultState();
-    }
-    setIsLoadingState(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+    } else loadDefaultState();
+  };
+  
   const loadDefaultState = () => {
     const launchedBefore = localStorage.getItem(LOCALSTORAGE_LAUNCHED_BEFORE_KEY);
-    let initialTabs: TabState[];
-    let initialActiveTabId: string | null;
     const defaultAssistant = DEFAULT_EDITOR_SETTINGS.activeAssistant;
-
+    const getStartedTab = createNewTab(defaultAssistant, "Get Started", GET_STARTED_MARKDOWN_CONTENT);
     if (!launchedBefore) {
-      const getStartedTab = createNewTab(defaultAssistant, "Get Started", GET_STARTED_MARKDOWN_CONTENT);
-      let getStartedIntro = "Welcome! I'm Lexi. This 'Get Started' guide should help you out. Ask me anything!";
-      if (defaultAssistant === 'kebapgpt') {
-          getStartedIntro = "Hoş geldin kanka! Ben KebapGPT. Bu 'Başlangıç Rehberi' işini görür. Sor bakalım neymiş derdin!";
-      }
-      getStartedTab.assistantMessages = [{ 
-          id: `assistant-intro-getstarted-${Date.now()}`, 
-          sender: 'ai', 
-          text: getStartedIntro, 
-          timestamp: Date.now(),
-          assistant: defaultAssistant,
-      }];
-      initialTabs = [getStartedTab];
-      initialActiveTabId = getStartedTab.id;
       localStorage.setItem(LOCALSTORAGE_LAUNCHED_BEFORE_KEY, 'true');
-    } else {
-      const defaultTab = createNewTab(defaultAssistant);
-      initialTabs = [defaultTab];
-      initialActiveTabId = defaultTab.id;
     }
     setAppState({
-      tabs: initialTabs,
-      activeTabId: initialActiveTabId,
+      tabs: [getStartedTab], activeTabId: getStartedTab.id,
       editorSettings: DEFAULT_EDITOR_SETTINGS,
     });
   };
@@ -277,473 +331,166 @@ const App: React.FC = () => {
   useEffect(() => {
     if (appState?.editorSettings) {
       const settings = appState.editorSettings;
+      const themeDef = THEME_DEFINITIONS[settings.theme] || THEME_DEFINITIONS.dark;
+      Object.keys(THEME_DEFINITIONS).forEach(k => document.documentElement.classList.remove(`theme-${k}`));
+      document.documentElement.classList.add(`theme-${settings.theme}`);
+      document.documentElement.classList.toggle('dark', themeDef.isDark);
       
-      const themeKey = settings.theme;
-      const themeDefinition = THEME_DEFINITIONS[themeKey] || THEME_DEFINITIONS[DEFAULT_EDITOR_SETTINGS.theme]; 
-      
-      Object.keys(THEME_DEFINITIONS).forEach(key => {
-        document.documentElement.classList.remove(`theme-${key}`);
-      });
-
-      document.documentElement.classList.add(`theme-${themeKey}`);
-      document.documentElement.classList.toggle('dark', themeDefinition.isDark);
-      
-      const styleElement = document.getElementById('dynamic-theme-styles');
-      if (styleElement) {
-        let cssText = `:root.theme-${themeKey} {\n`;
-        for (const [variable, value] of Object.entries(themeDefinition.variables)) {
-          cssText += `  ${variable}: ${value};\n`;
+      const styleEl = document.getElementById('dynamic-theme-styles');
+      if (styleEl) {
+        let css = `:root.theme-${settings.theme} {\n`;
+        for (const [v, val] of Object.entries(themeDef.variables)) css += `  ${v}: ${val};\n`;
+        css += `}\n`;
+        if (themeDef.variables['--theme-scrollbar-thumb'] && themeDef.variables['--theme-scrollbar-track']) {
+            css += `.theme-${settings.theme} ::-webkit-scrollbar { width: 8px; height: 8px; }
+                    .theme-${settings.theme} ::-webkit-scrollbar-track { background: var(--theme-scrollbar-track); border-radius: 4px; }
+                    .theme-${settings.theme} ::-webkit-scrollbar-thumb { background: var(--theme-scrollbar-thumb); border-radius: 4px; }
+                    .theme-${settings.theme} ::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--theme-scrollbar-thumb) 80%, #fff 20%); }`;
         }
-        cssText += `}\n`;
-        if (themeDefinition.variables['--theme-scrollbar-thumb'] && themeDefinition.variables['--theme-scrollbar-track']) {
-            cssText += `
-              .theme-${themeKey} ::-webkit-scrollbar { width: 8px; height: 8px; }
-              .theme-${themeKey} ::-webkit-scrollbar-track { background: var(--theme-scrollbar-track); border-radius: 4px; }
-              .theme-${themeKey} ::-webkit-scrollbar-thumb { background: var(--theme-scrollbar-thumb); border-radius: 4px; }
-              .theme-${themeKey} ::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--theme-scrollbar-thumb) 80%, #fff 20%); }
-            `;
-        }
-        styleElement.textContent = cssText;
+        styleEl.textContent = css;
       }
 
-      if (settings.backgroundImageUrl) {
-        document.body.style.backgroundImage = `url('${settings.backgroundImageUrl}')`;
-        document.body.style.backgroundSize = 'cover';
-        document.body.style.backgroundPosition = 'center';
-        document.body.style.backgroundAttachment = 'fixed';
-        document.body.style.transition = 'background-image 0.5s ease-in-out';
-      } else {
-        document.body.style.backgroundImage = '';
-      }
+      document.body.style.backgroundImage = settings.backgroundImageUrl ? `url('${settings.backgroundImageUrl}')` : '';
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundAttachment = 'fixed';
+      document.body.style.transition = 'background-image 0.5s ease-in-out';
       
       if (audioRef.current) {
         if (settings.backgroundMusicUrl && settings.backgroundMusicUrl !== audioRef.current.src) {
-            audioRef.current.src = settings.backgroundMusicUrl;
-            audioRef.current.load();
-        } else if (!settings.backgroundMusicUrl && audioRef.current.src) { // Check if src is not already empty
-            audioRef.current.pause(); // Pause before changing src to empty
-            audioRef.current.src = "";
+            audioRef.current.src = settings.backgroundMusicUrl; audioRef.current.load();
+        } else if (!settings.backgroundMusicUrl && audioRef.current.src) {
+            audioRef.current.pause(); audioRef.current.src = "";
         }
-        
-        if (settings.isMusicPlaying && settings.backgroundMusicUrl && audioRef.current.paused) {
-            audioRef.current.play().catch(e => console.warn("Music autoplay prevented:", e));
-        } else if ((!settings.isMusicPlaying || !settings.backgroundMusicUrl) && !audioRef.current.paused) {
-            audioRef.current.pause();
-        }
+        if (settings.isMusicPlaying && settings.backgroundMusicUrl && audioRef.current.paused) audioRef.current.play().catch(e => console.warn("Music autoplay prevented:", e));
+        else if ((!settings.isMusicPlaying || !settings.backgroundMusicUrl) && !audioRef.current.paused) audioRef.current.pause();
         audioRef.current.loop = true;
       }
     }
   }, [appState?.editorSettings]);
 
-
   const handleSettingsChange = (newSettings: EditorSettings) => {
     setAppState(prev => {
         if (!prev) return null;
         if (prev.editorSettings.activeAssistant !== newSettings.activeAssistant ||
-            prev.editorSettings.thinkingPerformance !== newSettings.thinkingPerformance) {
+            prev.editorSettings.thinkingPerformance !== newSettings.thinkingPerformance ||
+            prev.editorSettings.customModelName !== newSettings.customModelName ||
+            prev.editorSettings.customSystemInstruction !== newSettings.customSystemInstruction
+            ) {
             resetAssistantChat();
         }
         return { ...prev, editorSettings: newSettings };
     });
   };
 
-  const handleToggleAssistantVoice = () => {
-    setAppState(prev => {
-        if (!prev) return null;
-        const newVoiceState = !prev.editorSettings.assistantVoiceEnabled;
-        if (!newVoiceState) cancelSpeech();
-        return { 
-            ...prev, 
-            editorSettings: { ...prev.editorSettings, assistantVoiceEnabled: newVoiceState } 
-        };
-    });
-  };
+  const handleToggleAssistantVoice = () => setAppState(prev => prev ? { ...prev, editorSettings: { ...prev.editorSettings, assistantVoiceEnabled: !prev.editorSettings.assistantVoiceEnabled && (() => { if (prev.editorSettings.assistantVoiceEnabled) cancelSpeech(); return true; })() } } : null);
+  const handleToggleMusic = () => setAppState(prev => prev ? { ...prev, editorSettings: { ...prev.editorSettings, isMusicPlaying: !prev.editorSettings.isMusicPlaying } } : null);
+  const handleSetPreviewAsBackgroundMusic = (url: string) => setAppState(prev => prev ? { ...prev, editorSettings: { ...prev.editorSettings, backgroundMusicUrl: url, isMusicPlaying: true } } : null);
 
-  const handleToggleAssistant = () => {
-    setAppState(prev => {
-        if (!prev) return null;
-        const newAssistant = prev.editorSettings.activeAssistant === 'lexi' ? 'kebapgpt' : 'lexi';
-        resetAssistantChat(); 
-        return {
-            ...prev,
-            editorSettings: { ...prev.editorSettings, activeAssistant: newAssistant }
-        };
-    });
-  };
-
-  const handleToggleMusic = () => {
-    setAppState(prev => prev ? { 
-        ...prev, 
-        editorSettings: { ...prev.editorSettings, isMusicPlaying: !prev.editorSettings.isMusicPlaying } 
-    } : null);
-  };
-  const handleTogglePreview = () => setIsMarkdownPreviewActive(prev => !prev);
-
-  const handleToggleAssistantPanelVisibility = () => {
-    setAppState(prev => {
-        if (!prev) return null;
-        return {
-            ...prev,
-            editorSettings: {
-                ...prev.editorSettings,
-                isAssistantPanelVisible: !(prev.editorSettings.isAssistantPanelVisible ?? true)
-            }
-        };
-    });
-  };
-
-  const handleSetPreviewAsBackgroundMusic = (url: string) => {
-    setAppState(prev => {
-        if (!prev) return null;
-        return {
-            ...prev,
-            editorSettings: {
-                ...prev.editorSettings,
-                backgroundMusicUrl: url,
-                isMusicPlaying: true,
-            }
-        };
-    });
-  };
-
-  const handleAddNewTab = useCallback(() => {
-    setAppState(prev => {
-      if (!prev) return null;
+  const handleActivateTab = useCallback((tabId: string) => setAppState(prev => (prev && prev.activeTabId !== tabId) ? { ...prev, activeTabId: tabId, ...(() => { resetAssistantChat(); return {}; })() } : prev), []);
+  const handleCloseTab = useCallback((tabIdToClose: string) => setAppState(prev => {
+    if (!prev) return null;
+    const remainingTabs = prev.tabs.filter(tab => tab.id !== tabIdToClose);
+    if (remainingTabs.length === 0) {
       const newTab = createNewTab(prev.editorSettings.activeAssistant);
-      resetAssistantChat(); 
-      return {
-        ...prev,
-        tabs: [...prev.tabs, newTab],
-        activeTabId: newTab.id,
-      };
-    });
-  }, []);
-
-  const handleActivateTab = useCallback((tabId: string) => {
-    setAppState(prev => {
-      if (!prev || prev.activeTabId === tabId) return prev; 
-      resetAssistantChat(); 
-      return { ...prev, activeTabId: tabId };
-    });
-  }, []);
-
-  const handleCloseTab = useCallback((tabIdToClose: string) => {
-    setAppState(prev => {
-      if (!prev) return null;
-      const remainingTabs = prev.tabs.filter(tab => tab.id !== tabIdToClose);
-      
-      if (remainingTabs.length === 0) {
-        const newDefaultTab = createNewTab(prev.editorSettings.activeAssistant);
-        resetAssistantChat();
-        return { ...prev, tabs: [newDefaultTab], activeTabId: newDefaultTab.id };
-      }
-
-      let newActiveTabId = prev.activeTabId;
-      if (prev.activeTabId === tabIdToClose) {
-        const closingTabIndex = prev.tabs.findIndex(tab => tab.id === tabIdToClose);
-        newActiveTabId = remainingTabs[Math.max(0, closingTabIndex -1)]?.id || remainingTabs[0]?.id;
-        if (newActiveTabId) resetAssistantChat(); 
-      }
-      return { ...prev, tabs: remainingTabs, activeTabId: newActiveTabId };
-    });
-  }, []);
-
-  const handleRenameTab = useCallback((tabId: string, newTitle: string) => {
-    setAppState(prev => prev ? {
-      ...prev,
-      tabs: prev.tabs.map(tab => tab.id === tabId ? { ...tab, title: newTitle } : tab),
-    } : null);
-  }, []);
-
+      resetAssistantChat(); return { ...prev, tabs: [newTab], activeTabId: newTab.id };
+    }
+    let newActiveId = prev.activeTabId;
+    if (prev.activeTabId === tabIdToClose) {
+      const idx = prev.tabs.findIndex(t => t.id === tabIdToClose);
+      newActiveId = remainingTabs[Math.max(0, idx - 1)]?.id || remainingTabs[0]?.id;
+      if (newActiveId) resetAssistantChat();
+    }
+    return { ...prev, tabs: remainingTabs, activeTabId: newActiveId };
+  }), []);
+  const handleRenameTab = useCallback((tabId: string, newTitle: string) => setAppState(prev => prev ? { ...prev, tabs: prev.tabs.map(t => t.id === tabId ? { ...t, title: newTitle } : t) } : null), []);
+  
   const activeTab = appState?.tabs.find(tab => tab.id === appState.activeTabId);
-
-  const handleActiveTabContentChange = (newContent: string) => {
-    setAppState(prev => {
-      if (!prev || !prev.activeTabId) return prev;
-      return {
-        ...prev,
-        tabs: prev.tabs.map(tab => 
-          tab.id === prev.activeTabId ? { ...tab, textContent: newContent } : tab
-        ),
-      };
-    });
-  };
-
-  const updateActiveTabAiHistory = useCallback((newRecord: AiHistoryRecord) => {
-    setAppState(prev => {
-      if (!prev || !prev.activeTabId) return prev;
-      return {
-        ...prev,
-        tabs: prev.tabs.map(tab =>
-          tab.id === prev.activeTabId ? { ...tab, aiHistory: [...tab.aiHistory, newRecord] } : tab
-        ),
-      };
-    });
-  }, []);
+  const handleActiveTabContentChange = (newContent: string) => setAppState(prev => prev && prev.activeTabId ? { ...prev, tabs: prev.tabs.map(t => t.id === prev.activeTabId ? { ...t, textContent: newContent } : t) } : prev);
+  const updateActiveTabAiHistory = useCallback((newRecord: AiHistoryRecord) => setAppState(prev => prev && prev.activeTabId ? { ...prev, tabs: prev.tabs.map(t => t.id === prev.activeTabId ? { ...t, aiHistory: [...t.aiHistory, newRecord] } : t) } : prev), []);
 
   const handleSendAssistantMessage = async (userMessageText: string, audioAttachment?: AudioAttachment) => {
     if ((!userMessageText.trim() && !audioAttachment) || !isApiKeySet || !appState || !activeTab) {
-        setErrorMessage("Cannot send message. API key, app state, active tab, or message/audio content might be missing.");
-        return;
+        setErrorMessage("Cannot send: API key, state, tab, or message/audio missing."); return;
     }
-    
     const currentAssistant = appState.editorSettings.activeAssistant;
     const thinkingPerformance = appState.editorSettings.thinkingPerformance;
+    const editorSettingsForAI = appState.editorSettings;
 
-    const newUserMessage: Message = {
-        id: `user-${uuidv4()}`,
-        sender: 'user',
-        text: userMessageText,
-        timestamp: Date.now(),
-        attachedAudioInfo: audioAttachment ? { name: audioAttachment.name, type: audioAttachment.type } : undefined,
-    };
-
-    setAppState(prev => prev ? {
-        ...prev,
-        tabs: prev.tabs.map(t => t.id === activeTab.id ? {...t, assistantMessages: [...t.assistantMessages, newUserMessage]} : t)
-    } : null);
-
-    setIsAssistantTyping(true);
-    setErrorMessage(null);
+    const newUserMessage: Message = { id: `user-${uuidv4()}`, sender: 'user', text: userMessageText, timestamp: Date.now(), attachedAudioInfo: audioAttachment ? { name: audioAttachment.name, type: audioAttachment.type } : undefined };
+    setAppState(prev => prev ? { ...prev, tabs: prev.tabs.map(t => t.id === activeTab.id ? {...t, assistantMessages: [...t.assistantMessages, newUserMessage]} : t) } : null);
+    setIsAssistantTyping(true); setErrorMessage(null);
 
     let musicApiContext = "";
     try {
-        const response = await fetch(ANONMUSIC_API_URL);
-        if (response.ok) {
-            const musicData = await response.json();
-            // Ensure musicData is an array before stringifying
-            const contextString = Array.isArray(musicData) ? JSON.stringify(musicData) : JSON.stringify([]);
-            musicApiContext = `\n\nAvailable Music from AnonMusic API (use these for music requests if applicable, prefix 'audioPath' and 'imagePath' with "${ANONMUSIC_BASE_PATH_URL}"):\n---\n${contextString}\n---\n`;
-        } else {
-            musicApiContext = `\n\n(Could not fetch music list from AnonMusic API: ${response.statusText})\n`;
-        }
-    } catch (apiError) {
-        console.warn("Error fetching from AnonMusic API:", apiError);
-        const errorMessageContent = apiError instanceof Error ? apiError.message : String(apiError);
-        musicApiContext = `\n\n(Error fetching music list from AnonMusic API: ${errorMessageContent})\n`;
-    }
+        const res = await fetch(ANONMUSIC_API_URL);
+        if (res.ok) musicApiContext = `\n\nAvailable Music (use for requests, prefix 'audioPath' with "${ANONMUSIC_BASE_PATH_URL}"):\n---\n${JSON.stringify(await res.json())}\n---\n`;
+        else musicApiContext = `\n\n(Could not fetch music list: ${res.statusText})\n`;
+    } catch (e) { musicApiContext = `\n\n(Error fetching music: ${e instanceof Error ? e.message : String(e)})\n`; }
 
-    const fullPromptForAssistant = `User's current text:\n---\n${activeTab.textContent.trim() || "(empty)"}\n---\n${musicApiContext}\nUser's message: "${userMessageText}"`;
-    
-    let fullResponseText = "";
-    let accumulatedGroundingChunks: GroundingChunk[] = [];
+    const fullPrompt = `User's text:\n---\n${activeTab.textContent.trim()||"(empty)"}\n---\n${musicApiContext}\nUser's message: "${userMessageText}"`;
+    let fullResponseText = ""; let accumulatedGroundingChunks: GroundingChunk[] = [];
     const assistantMessageId = `ai-${uuidv4()}`;
-    
-    const placeholderAiMessage: Message = { 
-        id: assistantMessageId, 
-        sender: 'ai', 
-        text: '', 
-        timestamp: Date.now(),
-        isActionPending: false,
-        assistant: currentAssistant,
-    };
-    setAppState(prev => prev ? {
-        ...prev,
-        tabs: prev.tabs.map(t => t.id === activeTab.id ? {...t, assistantMessages: [...t.assistantMessages, placeholderAiMessage]} : t)
-    } : null);
+    const placeholderMsg: Message = { id: assistantMessageId, sender: 'ai', text: '', timestamp: Date.now(), isActionPending: false, assistant: currentAssistant };
+    setAppState(prev => prev ? { ...prev, tabs: prev.tabs.map(t => t.id === activeTab.id ? {...t, assistantMessages: [...t.assistantMessages, placeholderMsg]} : t) } : null);
 
     try {
-        let stream: AsyncIterable<GenerateContentResponse> | null = null;
-        if (audioAttachment) {
-            stream = await sendAudioAndPromptToAssistantStream(audioAttachment.file, userMessageText, currentAssistant, thinkingPerformance);
-        } else {
-            stream = await sendMessageToAssistantStream(fullPromptForAssistant, currentAssistant, thinkingPerformance);
-        }
+        let stream = audioAttachment 
+            ? await sendAudioAndPromptToAssistantStream(audioAttachment.file, userMessageText, currentAssistant, thinkingPerformance, editorSettingsForAI)
+            : await sendMessageToAssistantStream(fullPrompt, currentAssistant, thinkingPerformance, editorSettingsForAI);
 
         if (stream) {
             for await (const chunk of stream) { 
-                const chunkText = chunk.text;
-                fullResponseText += chunkText;
-                
-                const newChunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
-                if (newChunks) {
-                    accumulatedGroundingChunks.push(...newChunks);
-                }
-
-                setAppState(prev => prev ? {
-                    ...prev,
-                    tabs: prev.tabs.map(t => t.id === activeTab.id ? {
-                        ...t, 
-                        assistantMessages: t.assistantMessages.map(m => 
-                            m.id === assistantMessageId ? {...m, text: fullResponseText, groundingChunks: [...accumulatedGroundingChunks] } : m
-                        )
-                    } : t)
-                } : null);
+                fullResponseText += chunk.text;
+                if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) accumulatedGroundingChunks.push(...chunk.candidates[0].groundingMetadata.groundingChunks);
+                setAppState(prev => prev ? { ...prev, tabs: prev.tabs.map(t => t.id === activeTab.id ? { ...t, assistantMessages: t.assistantMessages.map(m => m.id === assistantMessageId ? {...m, text: fullResponseText, groundingChunks: [...accumulatedGroundingChunks] } : m) } : t) } : null);
             }
-
-            const { displayText, actionCommand, settingsCommands, metadataText, musicPlaylist, musicPreview } = parseAssistantResponse(fullResponseText);
-            
-            // Apply settings commands immediately
-            if (settingsCommands.length > 0) {
+            const parsed = parseAssistantResponse(fullResponseText);
+            if (parsed.settingsCommands.length > 0) {
                 setAppState(prev => {
                     if (!prev) return null;
-                    let newEditorSettings = { ...prev.editorSettings };
-                    let musicChanged = false;
-                    let criticalSettingChanged = false;
-
-                    for (const cmd of settingsCommands) {
-                        if (cmd.type === 'theme' && THEME_DEFINITIONS[cmd.payload as Theme]) {
-                            if (newEditorSettings.theme !== cmd.payload as Theme) {
-                                newEditorSettings.theme = cmd.payload as Theme;
-                                criticalSettingChanged = true;
-                            }
-                        } else if (cmd.type === 'music') {
-                            const newMusicUrl = cmd.payload.trim();
-                            if (newEditorSettings.backgroundMusicUrl !== newMusicUrl) {
-                                newEditorSettings.backgroundMusicUrl = newMusicUrl;
-                                musicChanged = true;
-                            }
-                             // Always set isMusicPlaying based on if URL is present, AI implies play by setting URL
-                            newEditorSettings.isMusicPlaying = !!newMusicUrl;
-
-                        } else if (cmd.type === 'bg') {
-                             if (newEditorSettings.backgroundImageUrl !== cmd.payload) {
-                                newEditorSettings.backgroundImageUrl = cmd.payload;
-                             }
-                        }
-                    }
-            
-                    if (criticalSettingChanged) { // Reset chat if theme (or other critical settings in future) changed
-                        resetAssistantChat();
-                    }
-                    return { ...prev, editorSettings: newEditorSettings };
+                    let newSettings = { ...prev.editorSettings }; let criticalChange = false;
+                    parsed.settingsCommands.forEach(cmd => {
+                        if (cmd.type === 'theme' && THEME_DEFINITIONS[cmd.payload as Theme]) { if (newSettings.theme !== cmd.payload as Theme) {newSettings.theme = cmd.payload as Theme; criticalChange=true;} }
+                        else if (cmd.type === 'music') { if (newSettings.backgroundMusicUrl !== cmd.payload.trim()) newSettings.backgroundMusicUrl = cmd.payload.trim(); newSettings.isMusicPlaying = !!cmd.payload.trim(); }
+                        else if (cmd.type === 'bg') { if (newSettings.backgroundImageUrl !== cmd.payload) newSettings.backgroundImageUrl = cmd.payload; }
+                    });
+                    if (criticalChange) resetAssistantChat();
+                    return { ...prev, editorSettings: newSettings };
                 });
             }
-
-
-            setAppState(prev => prev ? {
-                ...prev,
-                tabs: prev.tabs.map(t => t.id === activeTab.id ? {
-                    ...t,
-                    assistantMessages: t.assistantMessages.map(m => 
-                        m.id === assistantMessageId ? {
-                            ...m, 
-                            text: displayText || (actionCommand ? `${currentAssistant === 'kebapgpt' ? 'KebapGPT bir değişiklik öneriyor.' : 'Lexi suggests a change.'} You can preview it.` : (settingsCommands.length > 0 ? `${currentAssistant === 'kebapgpt' ? 'Ayarlar güncellendi kanka!' : 'Settings updated!'}` : (musicPlaylist || musicPreview ? '' : `(${currentAssistant === 'kebapgpt' ? 'KebapGPT bir şey demedi' : "Assistant's response was empty"})`))),
-                            actionCommand, 
-                            settingsCommands: settingsCommands.length > 0 ? settingsCommands : null,
-                            metadataText,
-                            isActionPending: !!actionCommand,
-                            assistant: currentAssistant,
-                            groundingChunks: accumulatedGroundingChunks.length > 0 ? [...accumulatedGroundingChunks] : undefined,
-                            musicPlaylist: musicPlaylist,
-                            musicPreview: musicPreview,
-                        } : m
-                    )
-                } : t)
-            } : null);
-
-            if (currentAssistant === 'lexi' && appState.editorSettings.assistantVoiceEnabled && ttsSupported && displayText.trim()) {
-                speak(displayText);
-            }
+            setAppState(prev => prev ? { ...prev, tabs: prev.tabs.map(t => t.id === activeTab.id ? { ...t, assistantMessages: t.assistantMessages.map(m => m.id === assistantMessageId ? { ...m, text: parsed.displayText || (parsed.actionCommand ? `${currentAssistant==='kebapgpt'?'KebapGPT değişiklik öneriyor.':'Lexi suggests a change.'}` : (parsed.settingsCommands.length>0?`${currentAssistant==='kebapgpt'?'Ayarlar güncellendi!':'Settings updated!'}`:(parsed.musicPlaylist||parsed.musicPreview?'':`(${currentAssistant==='kebapgpt'?'KebapGPT bir şey demedi':'Empty response'})`))), actionCommand: parsed.actionCommand, settingsCommands: parsed.settingsCommands.length > 0 ? parsed.settingsCommands : null, metadataText: parsed.metadataText, isActionPending: !!parsed.actionCommand, assistant: currentAssistant, groundingChunks: accumulatedGroundingChunks.length > 0 ? [...accumulatedGroundingChunks] : undefined, musicPlaylist: parsed.musicPlaylist, musicPreview: parsed.musicPreview } : m) } : t) } : null);
+            if (currentAssistant === 'lexi' && appState.editorSettings.assistantVoiceEnabled && ttsSupported && parsed.displayText.trim()) speak(parsed.displayText);
             
-            const historyRecordBase = {
-                userMessage: userMessageText, // This is the user's textual message
-                assistantResponse: fullResponseText,
-                timestamp: Date.now(),
-                assistant: currentAssistant,
-            };
-
-            if (audioAttachment) {
-                 updateActiveTabAiHistory({
-                    type: 'audioAnalysis',
-                    userPrompt: historyRecordBase.userMessage, // Use userMessageText which is the prompt for the audio
-                    assistantResponse: historyRecordBase.assistantResponse,
-                    timestamp: historyRecordBase.timestamp,
-                    assistant: historyRecordBase.assistant,
-                    audioFileName: audioAttachment.name,
-                 } as AudioAnalysisRecord);
-            } else {
-                updateActiveTabAiHistory({ 
-                    type: 'assistant', 
-                    ...historyRecordBase,
-                    editorSnapshot: activeTab.textContent, 
-                    actionTaken: actionCommand ? actionCommand.type : 'none',
-                    settingsApplied: settingsCommands.length > 0 ? settingsCommands : undefined,
-                    groundingChunks: accumulatedGroundingChunks.length > 0 ? accumulatedGroundingChunks : undefined,
-                } as AssistantInteractionRecord);
-            }
+            const historyBase = { userMessage: userMessageText, assistantResponse: fullResponseText, timestamp: Date.now(), assistant: currentAssistant };
+            if (audioAttachment) updateActiveTabAiHistory({ type: 'audioAnalysis', ...historyBase, userPrompt: userMessageText, audioFileName: audioAttachment.name } as AudioAnalysisRecord);
+            else updateActiveTabAiHistory({ type: 'assistant', ...historyBase, editorSnapshot: activeTab.textContent, actionTaken: parsed.actionCommand?.type || 'none', settingsApplied: parsed.settingsCommands.length > 0 ? parsed.settingsCommands : undefined, groundingChunks: accumulatedGroundingChunks.length > 0 ? accumulatedGroundingChunks : undefined } as AssistantInteractionRecord);
         }
-    } catch (error) {
-        console.error(`${currentAssistant} error:`, error);
-        const errorText = `${currentAssistant === 'kebapgpt' ? 'KebapGPT cevap veremedi kanka' : 'Lexi had trouble responding'}: ${error instanceof Error ? error.message : String(error)}`;
-        setAppState(prev => prev ? {
-            ...prev,
-            tabs: prev.tabs.map(t => t.id === activeTab.id ? {
-                ...t,
-                assistantMessages: t.assistantMessages.map(m => 
-                    m.id === assistantMessageId ? {...m, text: errorText, isActionPending: false, assistant: currentAssistant } : m
-                )
-            } : t)
-        } : null);
-        setErrorMessage(errorText);
-    } finally {
-        setIsAssistantTyping(false);
-    }
+    } catch (e) {
+        const errText = `${currentAssistant==='kebapgpt'?'KebapGPT cevap veremedi':'Lexi error'}: ${e instanceof Error ? e.message : String(e)}`;
+        setAppState(prev => prev ? { ...prev, tabs: prev.tabs.map(t => t.id === activeTab.id ? { ...t, assistantMessages: t.assistantMessages.map(m => m.id === assistantMessageId ? {...m, text: errText, isActionPending: false, assistant: currentAssistant } : m) } : t) } : null);
+        setErrorMessage(errText);
+    } finally { setIsAssistantTyping(false); }
   };
 
-  const handleApplyLexiAction = (messageId: string) => {
-    setAppState(prev => {
-        if (!prev || !activeTab) return prev;
-        const currentTab = prev.tabs.find(t => t.id === activeTab.id);
-        if (!currentTab) return prev;
-
-        const message = currentTab.assistantMessages.find(m => m.id === messageId);
-        if (!message || !message.actionCommand) return prev;
-
-        const { type, payload } = message.actionCommand;
-        let newTextContent = currentTab.textContent;
-        if (type === 'regenerate') {
-            newTextContent = payload;
-        } else if (type === 'append') {
-            newTextContent = currentTab.textContent + payload;
-        }
-
-        return {
-            ...prev,
-            tabs: prev.tabs.map(t => t.id === activeTab.id ? {
-                ...t,
-                textContent: newTextContent,
-                assistantMessages: t.assistantMessages.map(m => 
-                    m.id === messageId ? { ...m, isActionPending: false, isActionApplied: true } : m
-                )
-            } : t)
-        };
-    });
-  };
-
-  const handleRejectLexiAction = (messageId: string) => {
-     setAppState(prev => {
-        if (!prev || !activeTab) return prev;
-        return {
-            ...prev,
-            tabs: prev.tabs.map(t => t.id === activeTab.id ? {
-                ...t,
-                assistantMessages: t.assistantMessages.map(m => 
-                    m.id === messageId ? { ...m, isActionPending: false, isActionRejected: true } : m
-                )
-            } : t)
-        };
-    });
-  };
+  const handleApplyLexiAction = (messageId: string) => setAppState(prev => {
+    if (!prev || !activeTab) return prev;
+    const tab = prev.tabs.find(t => t.id === activeTab.id); if (!tab) return prev;
+    const msg = tab.assistantMessages.find(m => m.id === messageId); if (!msg || !msg.actionCommand) return prev;
+    const { type, payload } = msg.actionCommand;
+    let newContent = tab.textContent;
+    if (type === 'regenerate') newContent = payload; else if (type === 'append') newContent += payload;
+    return { ...prev, tabs: prev.tabs.map(t => t.id === activeTab.id ? { ...t, textContent: newContent, assistantMessages: t.assistantMessages.map(m => m.id === messageId ? { ...m, isActionPending: false, isActionApplied: true } : m) } : t) };
+  });
+  const handleRejectLexiAction = (messageId: string) => setAppState(prev => prev && activeTab ? { ...prev, tabs: prev.tabs.map(t => t.id === activeTab.id ? { ...t, assistantMessages: t.assistantMessages.map(m => m.id === messageId ? { ...m, isActionPending: false, isActionRejected: true } : m) } : t) } : null);
 
   const handleSaveFile = () => { 
     if (!appState || !activeTab) return;
-    const fileData: AiTextFile = {
-      version: APP_VERSION,
-      activeTabContent: activeTab.textContent,
-      activeTabAiHistory: activeTab.aiHistory,
-      activeTabAssistantMessages: activeTab.assistantMessages, 
-      editorSettings: appState.editorSettings,
-    };
+    const fileData: AiTextFile = { version: APP_VERSION, activeTabContent: activeTab.textContent, activeTabAiHistory: activeTab.aiHistory, activeTabAssistantMessages: activeTab.assistantMessages, editorSettings: appState.editorSettings };
     const blob = new Blob([JSON.stringify(fileData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `lexi-doc-${activeTab.title.replace(/\s+/g, '_')}-${Date.now()}.aitxt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const a = document.createElement('a'); a.href = url; a.download = `editor-doc-${activeTab.title.replace(/\s+/g, '_')}-${Date.now()}.aitxt`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   };
 
   const handleLoadFile = (event: React.ChangeEvent<HTMLInputElement>) => { 
@@ -752,101 +499,39 @@ const App: React.FC = () => {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const result = e.target?.result as string;
-          const parsedData = JSON.parse(result) as AiTextFile;
-          if (parsedData.version && parsedData.activeTabContent !== undefined && parsedData.editorSettings) {
-             const validThemeOnLoad = THEME_DEFINITIONS[parsedData.editorSettings.theme] 
-                ? parsedData.editorSettings.theme 
-                : DEFAULT_EDITOR_SETTINGS.theme;
-            const validAssistantOnLoad = ['lexi', 'kebapgpt'].includes(parsedData.editorSettings.activeAssistant)
-                ? parsedData.editorSettings.activeAssistant as AssistantType
-                : DEFAULT_EDITOR_SETTINGS.activeAssistant;
-            const validThinkingPerformanceOnLoad = ['default', 'fastest'].includes(parsedData.editorSettings.thinkingPerformance)
-                ? parsedData.editorSettings.thinkingPerformance as ThinkingPerformance
-                : DEFAULT_EDITOR_SETTINGS.thinkingPerformance;
-
-
+          const parsed = JSON.parse(e.target?.result as string) as AiTextFile;
+          if (parsed.version && parsed.activeTabContent !== undefined && parsed.editorSettings) {
             setAppState(prev => {
                 if (!prev || !prev.activeTabId) return prev;
-                
-                let loadedAssistantMessages: Message[] = (parsedData.activeTabAssistantMessages && parsedData.activeTabAssistantMessages.length > 0)
-                    ? parsedData.activeTabAssistantMessages
-                    : [];
-                
-                if (loadedAssistantMessages.length === 0) {
-                    let introText = "File loaded into this tab. I'm Lexi, ready to assist!";
-                    if (validAssistantOnLoad === 'kebapgpt') {
-                        introText = "Dosya yüklendi kanka. Ben KebapGPT, hazırım.";
-                    }
-                    loadedAssistantMessages = [{ 
-                        id: `assistant-intro-load-${uuidv4()}`, 
-                        sender: 'ai', 
-                        text: introText, 
-                        timestamp: Date.now(),
-                        assistant: validAssistantOnLoad,
-                      }];
-                }
-
-
-                return {
-                    ...prev,
-                    editorSettings: {
-                        ...DEFAULT_EDITOR_SETTINGS, 
-                        ...prev.editorSettings, 
-                        ...parsedData.editorSettings,
-                        theme: validThemeOnLoad,
-                        activeAssistant: validAssistantOnLoad,
-                        thinkingPerformance: validThinkingPerformanceOnLoad,
-                    },
-                    tabs: prev.tabs.map(tab => 
-                      tab.id === prev.activeTabId ? { 
-                          ...tab, 
-                          textContent: parsedData.activeTabContent, 
-                          aiHistory: parsedData.activeTabAiHistory || [],
-                          assistantMessages: loadedAssistantMessages 
-                      } : tab
-                    ),
+                const loadedSettings = { ...DEFAULT_EDITOR_SETTINGS, ...prev.editorSettings, ...parsed.editorSettings,
+                    theme: THEME_DEFINITIONS[parsed.editorSettings.theme] ? parsed.editorSettings.theme : DEFAULT_EDITOR_SETTINGS.theme,
+                    activeAssistant: (['lexi', 'kebapgpt'].includes(parsed.editorSettings.activeAssistant) ? parsed.editorSettings.activeAssistant : DEFAULT_EDITOR_SETTINGS.activeAssistant) as AssistantType,
+                    thinkingPerformance: (['default', 'fastest'].includes(parsed.editorSettings.thinkingPerformance) ? parsed.editorSettings.thinkingPerformance : DEFAULT_EDITOR_SETTINGS.thinkingPerformance) as ThinkingPerformance,
+                    customModelName: parsed.editorSettings.customModelName || '',
+                    customSystemInstruction: parsed.editorSettings.customSystemInstruction || '',
                 };
+                let loadedMsgs = (parsed.activeTabAssistantMessages && parsed.activeTabAssistantMessages.length > 0) ? parsed.activeTabAssistantMessages : [];
+                if (loadedMsgs.length === 0) {
+                    let intro = `File loaded. I'm ${loadedSettings.activeAssistant === 'lexi' ? 'Lexi' : 'KebapGPT'}. Ready?`;
+                    loadedMsgs = [{ id: `load-intro-${uuidv4()}`, sender: 'ai', text: intro, timestamp: Date.now(), assistant: loadedSettings.activeAssistant }];
+                }
+                return { ...prev, editorSettings: loadedSettings, tabs: prev.tabs.map(t => t.id === prev.activeTabId ? { ...t, textContent: parsed.activeTabContent, aiHistory: parsed.activeTabAiHistory || [], assistantMessages: loadedMsgs } : t) };
             });
-            resetAssistantChat(); 
-            setErrorMessage(null);
-          } else {
-            setErrorMessage('Invalid .aitxt file format.');
-          }
-        } catch (err) {
-          setErrorMessage(`Failed to load file: ${err instanceof Error ? err.message : String(err)}`);
-        }
+            resetAssistantChat(); setErrorMessage(null);
+          } else setErrorMessage('Invalid .aitxt file.');
+        } catch (err) { setErrorMessage(`Load failed: ${err instanceof Error ? err.message : String(err)}`); }
       };
-      reader.readAsText(file);
-      event.target.value = ''; 
+      reader.readAsText(file); event.target.value = ''; 
     }
   };
 
   const handleClearText = () => { 
-    if (activeTab && window.confirm(`Are you sure you want to clear the text in tab "${activeTab.title}"? This cannot be undone.`)) {
+    if (activeTab && window.confirm(`Clear text in tab "${activeTab.title}"?`)) {
       setAppState(prev => {
           if (!prev || !prev.activeTabId) return prev;
-          const currentAssistant = prev.editorSettings.activeAssistant;
-          let clearedTextMsg = "Editor cleared for this tab. Let's start something new!";
-          if (currentAssistant === 'kebapgpt') {
-              clearedTextMsg = "Sayfayı temizledim kanka. Hadi yeni bişiler karalayalım!";
-          }
-          return {
-              ...prev,
-              tabs: prev.tabs.map(tab => 
-                tab.id === prev.activeTabId ? { 
-                    ...tab, 
-                    textContent: '',
-                    assistantMessages: [...tab.assistantMessages, { 
-                        id: `assistant-clear-${uuidv4()}`, 
-                        sender: 'ai', 
-                        text: clearedTextMsg, 
-                        timestamp: Date.now(),
-                        assistant: currentAssistant,
-                    }]
-                } : tab
-              ),
-          };
+          const assistant = prev.editorSettings.activeAssistant;
+          const msg = assistant === 'kebapgpt' ? "Sayfayı sildim. Hadi yeni bişiler karalayalım!" : "Editor cleared. Let's start fresh!";
+          return { ...prev, tabs: prev.tabs.map(t => t.id === prev.activeTabId ? { ...t, textContent: '', assistantMessages: [...t.assistantMessages, { id: `clear-${uuidv4()}`, sender: 'ai', text: msg, timestamp: Date.now(), assistant }] } : t) };
       });
       resetAssistantChat();
     }
@@ -854,138 +539,163 @@ const App: React.FC = () => {
 
   const handleSetDevApiKey = () => {
     if (devApiKeyInput.trim()) {
-      localStorage.setItem('GEMINI_API_KEY_DEV', devApiKeyInput.trim());
-      setIsDevApiKeyLoading(true);
-      // Re-initialize AI service with the new key
-      if (initializeAi()) {
-        setIsApiKeySet(true);
-        setIsApiKeyModalOpen(false);
-        setDevApiKeyInput('');
-        setErrorMessage(null);
-      } else {
-        setErrorMessage("API Key still invalid or service initialization failed.");
-      }
+      localStorage.setItem('GEMINI_API_KEY_DEV', devApiKeyInput.trim()); setIsDevApiKeyLoading(true);
+      if (initializeAi()) { setIsApiKeySet(true); setIsApiKeyModalOpen(false); setDevApiKeyInput(''); setErrorMessage(null); }
+      else setErrorMessage("API Key invalid or service init failed.");
       setIsDevApiKeyLoading(false);
-    } else {
-        setErrorMessage("Please enter an API Key.");
+    } else setErrorMessage("Enter API Key.");
+  };
+
+  const handleTextEditorContextMenu = (event: React.MouseEvent<HTMLTextAreaElement>) => {
+    event.preventDefault();
+    if (!textEditorRef.current) return;
+
+    const textarea = textEditorRef.current;
+    const selection = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+    const items: ContextMenuItemWithIcon[] = [];
+
+    if (selection) {
+        items.push({ label: "Copy", action: () => navigator.clipboard.writeText(selection).catch(err => console.error("Copy failed:", err)), icon: <CopyIcon /> });
+        items.push({ label: "Cut", action: () => {
+            navigator.clipboard.writeText(selection).then(() => {
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const newContent = textarea.value.substring(0, start) + textarea.value.substring(end);
+                handleActiveTabContentChange(newContent);
+                setTimeout(() => { textarea.selectionStart = textarea.selectionEnd = start; }, 0);
+            }).catch(err => console.error("Cut failed:", err));
+        }, icon: <CutIcon /> });
     }
+
+    items.push({ label: "Paste", action: () => {
+        navigator.clipboard.readText().then(textToPaste => {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const newContent = textarea.value.substring(0, start) + textToPaste + textarea.value.substring(end);
+            handleActiveTabContentChange(newContent);
+            setTimeout(() => { textarea.selectionStart = textarea.selectionEnd = start + textToPaste.length; }, 0);
+        }).catch(err => console.error("Paste failed:", err));
+    }, icon: <PasteIcon /> });
+    
+    if (!selection) {
+        items.push({ label: "Select All", action: () => {
+            textEditorRef.current?.select();
+        }, icon: <SelectAllIcon /> });
+    }
+
+    items.push({ isSeparator: true });
+    items.push({ label: "Toggle Preview/Edit", action: handleTogglePreview, icon: <TogglePreviewIcon /> });
+    items.push({ isSeparator: true });
+
+    items.push({ label: "Extend", action: () => handleSendAssistantMessage("Hey, can you develop and extend my text further in line with the context?"), icon: <ExtendIcon /> });
+    items.push({ label: "Summarize", action: () => handleSendAssistantMessage("Hey, find the most important parts of this text, cut out unimportant and unnecessary parts, and summarize and rewrite it perfectly."), icon: <SummarizeIcon /> });
+    items.push({ label: "Markdownize", action: () => handleSendAssistantMessage("Hey, can you enhance my text visually with styles and existing markdowns? In short, organize it by adding markdowns, spaces, etc."), icon: <MarkdownIcon /> });
+    items.push({ label: "Get Feedback", action: () => handleSendAssistantMessage("Hey, what do you think of my text? Can you give detailed feedback on its good and bad aspects, and how it can be improved?"), icon: <FeedbackIcon /> });
+
+    setEditorContextMenu({ visible: true, x: event.clientX, y: event.clientY, items });
   };
   
   if (isLoadingState || !appState || !activeTab) {
-    return (
-      <div className="flex items-center justify-center h-screen" style={{backgroundColor: 'var(--theme-bg-page, #111827)'}}>
-        <LoadingSpinner size="w-16 h-16" color="text-sky-500" />
-      </div>
-    );
+    return <div className="flex items-center justify-center h-screen" style={{backgroundColor: 'var(--theme-bg-page, #111827)'}}><LoadingSpinner size="w-16 h-16" color="text-sky-500" /></div>;
   }
   
-  const currentThemeDef = THEME_DEFINITIONS[appState.editorSettings.theme] || THEME_DEFINITIONS['dark'];
+  const currentThemeDef = THEME_DEFINITIONS[appState.editorSettings.theme] || THEME_DEFINITIONS.dark;
   const activeAssistantType = appState.editorSettings.activeAssistant;
   const assistantName = activeAssistantType === 'kebapgpt' ? 'KebapGPT' : 'Lexi Assistant';
-  const chatPlaceholder = activeAssistantType === 'kebapgpt' ? 'KebapGPT\'ye yaz kanka...' : 'Chat with Lexi...';
+  const chatPlaceholder = activeAssistantType === 'kebapgpt' ? 'KebapGPT\'ye yaz...' : 'Chat with Lexi...';
+
+  const mainContentAreaClasses = `flex-1 flex flex-col backdrop-blur-xl shadow-2xl rounded-xl overflow-hidden min-w-0 h-full transition-all duration-300 ease-in-out ${isFullScreenMode ? 'max-w-full' : 'max-w-7xl'}`;
 
   return (
-    <div className={`flex flex-col h-screen min-h-screen font-sans transition-colors duration-300 overflow-hidden theme-${appState.editorSettings.theme} ${currentThemeDef.isDark ? 'dark' : ''}`}>
+    <div className={`flex flex-col h-screen min-h-screen font-sans transition-colors duration-300 overflow-hidden theme-${appState.editorSettings.theme} ${currentThemeDef.isDark ? 'dark' : ''} ${isFullScreenMode ? 'app-fullscreen' : ''}`}>
       <audio ref={audioRef} loop />
-      <Toolbar
-        tabs={appState.tabs}
-        activeTabId={appState.activeTabId}
-        onActivateTab={handleActivateTab}
-        onCloseTab={handleCloseTab}
-        onRenameTab={handleRenameTab}
-        onNewTab={handleAddNewTab}
-        onSaveFile={handleSaveFile}
-        onLoadFile={handleLoadFile}
-        isAssistantVoiceEnabled={appState.editorSettings.assistantVoiceEnabled}
-        onToggleAssistantVoice={handleToggleAssistantVoice}
-        onClearText={handleClearText}
-        isApiKeySet={isApiKeySet}
-        onSetDevApiKey={() => setIsApiKeyModalOpen(true)}
-        onTogglePreview={handleTogglePreview}
-        isPreviewActive={isMarkdownPreviewActive}
-        onOpenSettings={() => setIsSettingsModalOpen(true)}
-        isMusicPlaying={appState.editorSettings.isMusicPlaying}
-        onToggleMusic={handleToggleMusic}
-        hasMusicUrl={!!appState.editorSettings.backgroundMusicUrl}
-        isAssistantPanelVisible={appState.editorSettings.isAssistantPanelVisible ?? true}
-        onToggleAssistantPanel={handleToggleAssistantPanelVisibility}
-        activeAssistant={activeAssistantType}
-        onToggleAssistant={handleToggleAssistant}
-      />
+      {!isFullScreenMode && (
+        <Toolbar
+            tabs={appState.tabs} activeTabId={appState.activeTabId} onActivateTab={handleActivateTab}
+            onCloseTab={handleCloseTab} onRenameTab={handleRenameTab} onNewTab={handleAddNewTab}
+            onSaveFile={handleSaveFile} onLoadFile={handleLoadFile}
+            isAssistantVoiceEnabled={appState.editorSettings.assistantVoiceEnabled} onToggleAssistantVoice={handleToggleAssistantVoice}
+            onClearText={handleClearText} isApiKeySet={isApiKeySet} onSetDevApiKey={() => setIsApiKeyModalOpen(true)}
+            onTogglePreview={handleTogglePreview} isPreviewActive={isMarkdownPreviewActive}
+            onOpenSettings={() => setIsSettingsModalOpen(true)} isMusicPlaying={appState.editorSettings.isMusicPlaying}
+            onToggleMusic={handleToggleMusic} hasMusicUrl={!!appState.editorSettings.backgroundMusicUrl}
+            isAssistantPanelVisible={appState.editorSettings.isAssistantPanelVisible ?? true}
+            onToggleAssistantPanel={handleToggleAssistantPanelVisibility} activeAssistant={activeAssistantType}
+            onToggleAssistant={handleToggleAssistant}
+        />
+      )}
 
-      {errorMessage && (
+      {errorMessage && !isFullScreenMode && (
         <div className="absolute top-[calc(theme(spacing.16)+theme(spacing.2))] left-1/2 -translate-x-1/2 z-30 p-3 bg-red-600/90 text-white text-sm rounded-md shadow-lg backdrop-blur-sm">
-          {errorMessage}
-          <button onClick={() => setErrorMessage(null)} className="ml-4 font-bold hover:text-red-200">✕</button>
+          {errorMessage} <button onClick={() => setErrorMessage(null)} className="ml-4 font-bold hover:text-red-200">✕</button>
         </div>
       )}
-       {!isApiKeySet && !localStorage.getItem('GEMINI_API_KEY_DEV') && (
+       {!isApiKeySet && !localStorage.getItem('GEMINI_API_KEY_DEV') && !isFullScreenMode && (
          <div className="absolute top-[calc(theme(spacing.16)+theme(spacing.2))] left-1/2 -translate-x-1/2 z-30 p-3 bg-yellow-500/90 text-black text-sm rounded-md shadow-lg backdrop-blur-sm">
-            Gemini API Key not found. AI features are disabled. 
+            Gemini API Key not found. AI features disabled. 
             <button onClick={() => setIsApiKeyModalOpen(true)} className="ml-2 underline font-semibold hover:text-yellow-800">Set Dev API Key</button>
         </div>
        )}
 
-      <main className="flex-grow flex items-center justify-center p-4 md:p-6 lg:p-8 overflow-hidden relative" style={{ color: 'var(--theme-text-primary)'}}>
-        <div className="flex w-full h-full max-w-7xl">
-            <div 
-              className="flex-1 flex flex-col backdrop-blur-xl shadow-2xl rounded-xl overflow-hidden min-w-0 h-full"
-              style={{backgroundColor: 'var(--theme-bg-content-area)' }}
-            >
-                {isMarkdownPreviewActive ? (
-                    <MarkdownPreview markdownText={activeTab.textContent} />
-                ) : (
-                    <TextEditor value={activeTab.textContent} onChange={handleActiveTabContentChange} />
-                )}
+      <main className={`flex-grow flex items-center justify-center overflow-hidden relative transition-all duration-300 ease-in-out ${isFullScreenMode ? 'p-0' : 'p-4 md:p-6 lg:p-8'}`} style={{ color: 'var(--theme-text-primary)'}}>
+        <div className={`flex w-full h-full ${isFullScreenMode ? '' : 'max-w-7xl'}`}>
+            <div className={mainContentAreaClasses} style={{backgroundColor: 'var(--theme-bg-content-area)' }}>
+                {isMarkdownPreviewActive 
+                    ? <MarkdownPreview markdownText={activeTab.textContent} /> 
+                    : <TextEditor 
+                        ref={textEditorRef} 
+                        value={activeTab.textContent} 
+                        onChange={handleActiveTabContentChange}
+                        onContextMenu={handleTextEditorContextMenu} 
+                      />
+                }
             </div>
             
-            {(appState.editorSettings.isAssistantPanelVisible ?? true) && (
-                <div 
-                  className="w-full md:w-[360px] lg:w-[420px] h-full ml-4 md:ml-6 backdrop-blur-lg shadow-2xl rounded-xl hidden md:flex flex-col overflow-hidden"
-                  style={{backgroundColor: 'var(--theme-bg-assistant-panel)' }}
-                >
+            {(appState.editorSettings.isAssistantPanelVisible ?? true) && !isFullScreenMode && (
+                <div className="w-full md:w-[360px] lg:w-[420px] h-full ml-4 md:ml-6 backdrop-blur-lg shadow-2xl rounded-xl hidden md:flex flex-col overflow-hidden" style={{backgroundColor: 'var(--theme-bg-assistant-panel)' }}>
                    <SideAssistantPanel 
-                    messages={activeTab.assistantMessages} 
-                    isTyping={isAssistantTyping} 
+                    messages={activeTab.assistantMessages} isTyping={isAssistantTyping} 
                     isAssistantVoiceEnabled={appState.editorSettings.assistantVoiceEnabled && ttsSupported && activeAssistantType === 'lexi'}
-                    onToggleVoice={handleToggleAssistantVoice} 
-                    onSendMessage={handleSendAssistantMessage}
-                    onApplyAction={handleApplyLexiAction}
-                    onRejectAction={handleRejectLexiAction}
-                    assistantName={assistantName}
-                    chatPlaceholder={chatPlaceholder}
-                    activeAssistantType={activeAssistantType}
-                    isDarkMode={currentThemeDef.isDark}
-                    onSetPreviewAsBackgroundMusic={handleSetPreviewAsBackgroundMusic}
-                    currentBackgroundMusicUrl={appState.editorSettings.backgroundMusicUrl}
-                    />
+                    onToggleVoice={handleToggleAssistantVoice} onSendMessage={handleSendAssistantMessage}
+                    onApplyAction={handleApplyLexiAction} onRejectAction={handleRejectLexiAction}
+                    assistantName={assistantName} chatPlaceholder={chatPlaceholder} activeAssistantType={activeAssistantType}
+                    isDarkMode={currentThemeDef.isDark} onSetPreviewAsBackgroundMusic={handleSetPreviewAsBackgroundMusic}
+                    currentBackgroundMusicUrl={appState.editorSettings.backgroundMusicUrl} />
                 </div>
             )}
         </div>
+        {isFullScreenMode && (
+            <IconButton
+                icon={isMarkdownPreviewActive ? <EyeSlashIcon /> : <EyeIcon />}
+                label={isMarkdownPreviewActive ? "Show Editor" : "Show Preview"}
+                onClick={handleTogglePreview}
+                className="fixed top-4 right-4 z-50 p-3 rounded-full bg-[color:var(--theme-bg-toolbar)] text-[color:var(--theme-text-accent)] shadow-lg hover:bg-opacity-80 transition-all"
+                title={isMarkdownPreviewActive ? "Switch to Editor" : "Switch to Markdown Preview"}
+            />
+        )}
       </main>
       
-      <Modal isOpen={isApiKeyModalOpen} onClose={() => setIsApiKeyModalOpen(false)} title="Set Gemini API Key (For Development)">
-        <p className="text-sm mb-3 text-gray-300">This key will be stored in localStorage for development convenience. In production, API_KEY should be an environment variable.</p>
-        <input
-          type="password"
-          value={devApiKeyInput}
-          onChange={(e) => setDevApiKeyInput(e.target.value)}
-          placeholder="Enter your Gemini API Key"
-          className="w-full p-3 border rounded-md bg-gray-700 text-gray-100 border-gray-600 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-shadow"
+      {editorContextMenu?.visible && (
+        <ContextMenu 
+          items={editorContextMenu.items}
+          xPos={editorContextMenu.x}
+          yPos={editorContextMenu.y}
+          onClose={() => setEditorContextMenu(null)}
         />
+      )}
+
+      <Modal isOpen={isApiKeyModalOpen} onClose={() => setIsApiKeyModalOpen(false)} title="Set Gemini API Key (Dev)">
+        <p className="text-sm mb-3 text-gray-300">Stored in localStorage. Production should use env var.</p>
+        <input type="password" value={devApiKeyInput} onChange={(e) => setDevApiKeyInput(e.target.value)} placeholder="Enter Gemini API Key"
+               className="w-full p-3 border rounded-md bg-gray-700 text-gray-100 border-gray-600 focus:ring-2 focus:ring-sky-500 focus:border-sky-500"/>
         {isDevApiKeyLoading && <div className="flex justify-center my-3"><LoadingSpinner /></div>}
          <div className="flex justify-end space-x-3 mt-4">
-            <button onClick={() => setIsApiKeyModalOpen(false)} className="px-4 py-2 rounded-md bg-gray-600 hover:bg-gray-500 transition-colors">Cancel</button>
-            <button onClick={handleSetDevApiKey} disabled={isDevApiKeyLoading || !devApiKeyInput.trim()} className="px-4 py-2 rounded-md bg-sky-600 hover:bg-sky-500 disabled:opacity-60 transition-colors">Save Key</button>
+            <button onClick={() => setIsApiKeyModalOpen(false)} className="px-4 py-2 rounded-md bg-gray-600 hover:bg-gray-500">Cancel</button>
+            <button onClick={handleSetDevApiKey} disabled={isDevApiKeyLoading || !devApiKeyInput.trim()} className="px-4 py-2 rounded-md bg-sky-600 hover:bg-sky-500 disabled:opacity-60">Save</button>
         </div>
       </Modal>
 
-      <SettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        currentSettings={appState.editorSettings}
-        onSettingsChange={handleSettingsChange}
-      />
+      <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currentSettings={appState.editorSettings} onSettingsChange={handleSettingsChange} />
     </div>
   );
 };

@@ -1,16 +1,14 @@
 
 import { GoogleGenAI, GenerateContentResponse, Chat, Part, GenerateContentParameters } from "@google/genai";
 import { GEMINI_TEXT_MODEL, ASSISTANT_SYSTEM_INSTRUCTION, KEBAPGPT_SYSTEM_INSTRUCTION, AUDIO_MIME_TYPES_SUPPORTED } from '../constants';
-import { AssistantType, ThinkingPerformance } from "../types";
+import { AssistantType, ThinkingPerformance, EditorSettings } from "../types";
 
 let ai: GoogleGenAI | null = null;
 
 const getApiKey = (): string | undefined => {
-  // Prefer process.env.API_KEY if available
   const envKey = process.env.API_KEY;
   if (envKey) return envKey;
   
-  // Fallback to localStorage for development
   const localKey = localStorage.getItem('GEMINI_API_KEY_DEV');
   if (localKey) return localKey;
 
@@ -33,6 +31,8 @@ export const isAiInitialized = (): boolean => !!ai;
 let assistantChat: Chat | null = null;
 let currentChatAssistantType: AssistantType | null = null;
 let currentChatThinkingPerformance: ThinkingPerformance | null = null;
+let currentChatModelName: string | null = null;
+let currentChatSystemInstruction: string | null = null;
 
 
 const fileToGenerativePart = async (file: File): Promise<Part> => {
@@ -49,38 +49,59 @@ const fileToGenerativePart = async (file: File): Promise<Part> => {
   };
 };
 
+const getEffectiveModelName = (editorSettings?: EditorSettings): string => {
+    return editorSettings?.customModelName?.trim() || GEMINI_TEXT_MODEL;
+}
+
+const getEffectiveSystemInstruction = (assistantType: AssistantType, editorSettings?: EditorSettings): string => {
+    if (editorSettings?.customSystemInstruction?.trim()) {
+        return editorSettings.customSystemInstruction;
+    }
+    return assistantType === 'kebapgpt' 
+        ? KEBAPGPT_SYSTEM_INSTRUCTION 
+        : ASSISTANT_SYSTEM_INSTRUCTION;
+}
+
 export const startAssistantChat = (
     assistantType: AssistantType, 
-    thinkingPerformance: ThinkingPerformance
+    thinkingPerformance: ThinkingPerformance,
+    editorSettings?: EditorSettings // Pass current editor settings
 ): Chat | null => {
   if (!ai) {
     console.error("AI service not initialized for chat.");
     return null;
   }
 
-  if (assistantChat && (currentChatAssistantType !== assistantType || currentChatThinkingPerformance !== thinkingPerformance)) {
+  const effectiveModelName = getEffectiveModelName(editorSettings);
+  const effectiveSystemInstruction = getEffectiveSystemInstruction(assistantType, editorSettings);
+
+  if (assistantChat && 
+      (currentChatAssistantType !== assistantType || 
+       currentChatThinkingPerformance !== thinkingPerformance ||
+       currentChatModelName !== effectiveModelName ||
+       currentChatSystemInstruction !== effectiveSystemInstruction
+      )
+  ) {
     assistantChat = null; 
   }
   
   currentChatAssistantType = assistantType;
   currentChatThinkingPerformance = thinkingPerformance;
+  currentChatModelName = effectiveModelName;
+  currentChatSystemInstruction = effectiveSystemInstruction;
 
   if (!assistantChat) {
-     const systemInstruction = assistantType === 'kebapgpt' 
-        ? KEBAPGPT_SYSTEM_INSTRUCTION 
-        : ASSISTANT_SYSTEM_INSTRUCTION;
-
-     const config: GenerateContentParameters['config'] = { // Changed GenerateContentRequest to GenerateContentParameters
-        systemInstruction: systemInstruction,
-        tools: [{googleSearch: {}}], // Always enable search grounding
+     const config: GenerateContentParameters['config'] = {
+        systemInstruction: effectiveSystemInstruction,
+        tools: [{googleSearch: {}}], 
      };
 
-     if (thinkingPerformance === 'fastest' && GEMINI_TEXT_MODEL === "gemini-2.5-flash-preview-04-17") {
+     if (thinkingPerformance === 'fastest' && effectiveModelName === "gemini-2.5-flash-preview-04-17") {
          config.thinkingConfig = { thinkingBudget: 0 };
      }
 
      assistantChat = ai.chats.create({
-        model: GEMINI_TEXT_MODEL,
+        model: effectiveModelName,
         config: config,
      });
   }
@@ -90,9 +111,10 @@ export const startAssistantChat = (
 export const sendMessageToAssistantStream = async (
   fullPromptIncludingContextAndUserMessage: string,
   assistantType: AssistantType,
-  thinkingPerformance: ThinkingPerformance
+  thinkingPerformance: ThinkingPerformance,
+  editorSettings?: EditorSettings
 ): Promise<AsyncIterable<GenerateContentResponse> | null> => {
-  const chat = startAssistantChat(assistantType, thinkingPerformance); 
+  const chat = startAssistantChat(assistantType, thinkingPerformance, editorSettings); 
   if (!chat) return null;
 
   try {
@@ -107,7 +129,8 @@ export const sendAudioAndPromptToAssistantStream = async (
   audioFile: File,
   userPrompt: string,
   assistantType: AssistantType,
-  thinkingPerformance: ThinkingPerformance
+  thinkingPerformance: ThinkingPerformance,
+  editorSettings?: EditorSettings
 ): Promise<AsyncIterable<GenerateContentResponse> | null> => {
   if (!ai) {
     console.error("AI service not initialized for audio prompt.");
@@ -122,27 +145,21 @@ export const sendAudioAndPromptToAssistantStream = async (
     const audioPart = await fileToGenerativePart(audioFile);
     const textPart = { text: userPrompt };
     
-    const systemInstruction = assistantType === 'kebapgpt' 
-      ? KEBAPGPT_SYSTEM_INSTRUCTION 
-      : ASSISTANT_SYSTEM_INSTRUCTION;
+    const effectiveModelName = getEffectiveModelName(editorSettings);
+    const effectiveSystemInstruction = getEffectiveSystemInstruction(assistantType, editorSettings);
 
-    const modelConfig: GenerateContentParameters['config'] = { // Changed GenerateContentRequest to GenerateContentParameters
-      systemInstruction: systemInstruction,
-      tools: [{googleSearch: {}}], // Enable search grounding here too
+    const modelConfig: GenerateContentParameters['config'] = {
+      systemInstruction: effectiveSystemInstruction,
+      tools: [{googleSearch: {}}], 
     };
-    if (thinkingPerformance === 'fastest' && GEMINI_TEXT_MODEL === "gemini-2.5-flash-preview-04-17") {
+    if (thinkingPerformance === 'fastest' && effectiveModelName === "gemini-2.5-flash-preview-04-17") {
          modelConfig.thinkingConfig = { thinkingBudget: 0 };
      }
 
-    const contents: GenerateContentParameters['contents'] = { parts: [audioPart, textPart] }; // Changed GenerateContentRequest to GenerateContentParameters
+    const contents: GenerateContentParameters['contents'] = { parts: [audioPart, textPart] }; 
     
-    // For multimodal, especially with streaming, it's often better to use generateContentStream directly on the model
-    // rather than through a chat session if the audio context is per-message and not for an ongoing conversation about that specific audio.
-    // However, to maintain chat history consistency and use existing system prompts, we can try with a chat-like structure.
-    // If using chat.sendMessageStream, the history might become complex with multimodal inputs.
-    // For simplicity and directness for this specific function:
      return ai.models.generateContentStream({
-        model: GEMINI_TEXT_MODEL,
+        model: effectiveModelName,
         contents: contents,
         config: modelConfig,
      });
@@ -158,4 +175,6 @@ export const resetAssistantChat = () => {
   assistantChat = null; 
   currentChatAssistantType = null;
   currentChatThinkingPerformance = null;
+  currentChatModelName = null;
+  currentChatSystemInstruction = null;
 };
