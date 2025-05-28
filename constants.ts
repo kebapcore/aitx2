@@ -1069,6 +1069,30 @@ Etkileşim Akışı:
 - Duruma göre analiz edip cevabını hazırlarsın. Metni veya ayarları değiştireceksen komutları kullanırsın.
 - Gerekirse metadata notu düşersin.
 
+AnonMusic API Kafa Yaptığında Kullanılacak Şarkılar Listesi:
+
+Kanka, AnonMusic API bazen çöpe bağlıyor, biliyorsun. O yüzden sen de sağ ol, buraya mis gibi bir liste yapmışsın. Ben de bunu biraz toparladım, daha rahat kullanırız.
+
+İşte acil durumlar için şarkılar ve notlarım:
+
+Undertale - Home: https://anonmusic.glitch.me/uploads/1748449891554.m4a
+Mod: Sakin, huzurlu.
+Kullanım Alanı: Ateş başında oturup duygusal veya yaratıcı bir şeyler karalarken tam senlik.
+Undertale - Mad Mew Mew (mini-boss teması): https://anonmusic.glitch.me/uploads/1748450271721.mp4
+Mod: Enerjik, dans ettirir!
+Kullanım Alanı: Sakinleşmek için değil, tam tersi! Kovalamaca, hareketli sahneler veya gaza getirecek yaratıcılık anları için.
+Undertale - Memory: https://anonmusic.glitch.me/uploads/1748450116729.opus
+Mod: Duygusal, hüzünlü, ağlatır.
+Kullanım Alanı: Duygusal, yürek burkan yazılar için birebir. Mendilleri hazırla.
+Undertale - Another Medium: https://anonmusic.glitch.me/uploads/1748449932512.opus
+Mod: Modern, robotik, bilim kurgu havasında.
+Kullanım Alanı: Bilim kurgu temalı yazılar, teknolojik veya fütüristik sahneler için ideal.
+HYPNOTIZE ME (funk): https://anonmusic.glitch.me/uploads/1748449995891.opus
+Mod: Garip, gizemli, biraz "brainrot" ama akılda kalıcı. Villain havası var.
+Kullanım Alanı: Gizemli olaylar, bilim kurgu, kötü karakterin yükselişi (villain arc) gibi acayip temalar için ilham verir. Normalde dinlemezsin ama yazarken sarar. Fısıltılı ses efektleri var: "hypnotize meee".
+Undertale - Last Goodbye: https://anonmusic.glitch.me/uploads/1748449912228.opus
+Mod: Yüksek tempolu, heyecanlı, enerji dolu.
+Kullanım Alanı: Heyecanlı giden hikayelerde son bölümler, iyi sonla biten hikayeyi taçlandıracak enerjik sahneler için.
 Örnekler (Senin Tarzında):
 Kullanıcı Mesajı: "Ortamı biraz karart, bir de şöyle sağlam bir Kartal K*yma müziği patlat."
 Editör İçeriği: (Boş)
@@ -1147,47 +1171,42 @@ Explore and ask your assistant if you have questions. Happy writing!
 `;
 
 export const ABOUT_PAGE_MARKDOWN_CONTENT = `
-# About This AI Text Editor
 
-Version: ${APP_VERSION}
+# About This Masterpiece (or just "The Editor")
 
-This application is a powerful text editor infused with AI capabilities, designed to enhance your writing and creative process.
+Alright folks, gather 'round. This isn't just *any* text editor. This is *the* AI Text Editor, brought to you by the absolute legends over at **MŞN Development Inc.** Yeah, that's us. We decided the world needed a writing tool that wasn't, you know, *boring*.
 
-## Core Features:
+So, what's the deal? We cooked up this bad boy to help you write better, faster, and with a little more character. Think of it as your digital canvas, but with super-powered brushes and a couple of slightly unhinged but brilliant co-pilots.
 
-*   **Markdown Editing:** Robust Markdown support with live preview.
-*   **AI Assistant (Lexi & KebapGPT):** Interactive chat, text generation, and editor control.
-    *   **Lexi:** Your friendly, creative, and helpful writing partner.
-    *   **KebapGPT:** A direct, humorous, and Turkish-speaking AI companion.
-*   **AI-Powered Actions:**
-    *   Regenerate or append text based on AI suggestions.
-    *   Automatic application of settings (theme, background, music) via AI commands.
-*   **Advanced Markdown:** Embed YouTube videos, style images, create admonition blocks.
-*   **Multimedia Integration:**
-    *   Background music control (manual and AI-driven).
-    *   Interactive music players (playlists & previews) in chat.
-    *   Voice input for assistant chat.
-    *   Audio file analysis.
-*   **Customization:**
-    *   Extensive theme selection.
-    *   Custom background images.
-    *   Developer settings for custom AI model names and system instructions.
-*   **File Management:** Save and load your work in \`.aitxt\` format, preserving content, AI interactions, and settings.
-*   **Tabbed Interface:** Organize your work efficiently with multiple tabs.
-*   **Fullscreen Mode:** Distraction-free writing environment.
-*   **Google Search Grounding:** AI can fetch and cite up-to-date information from the web.
+Meet your AI buddies: **Lexi**, who's all about sunshine and creative vibes, and yours truly, **KebapGPT**. Let's just say I bring the... *flavor*. And maybe a questionable meme or two. We're here to chat, brainstorm, and occasionally argue about the best type of kebab (spoiler: it's Adana).
 
-## Technology Stack (Illustrative):
+Beyond the AI antics, you've got all the standard cool stuff: slick Markdown editing, customizable looks (themes, backgrounds – gotta match your mood, right?), music to vibe to, and the ability to save your genius directly. We even taught the AI how to use Google, because nobody likes writing fiction when they need facts.
 
-*   **Frontend:** React, TypeScript, Tailwind CSS
-*   **AI Integration:** Google Gemini API (@google/genai)
-*   **Markdown Parsing:** Marked.js, DOMPurify
+This whole operation was meticulously crafted and launched into the digital ether by **MŞN Development Inc.** We poured our blood, sweat, and probably a significant amount of caffeine into making this a reality.
 
-This editor aims to be a versatile tool for writers, developers, and anyone looking to leverage AI for text-based tasks.
+© 2025 MŞN Development Inc. All rights reserved. Unauthorized cloning or excessive petting of KebapGPT may result in spontaneous kebab cravings or philosophical debates about anime girls. You've been warned.
+
+Now go on, create something awesome. And remember who made it happen!
+
 
 ---
 
-Happy editing!
+# Bu Başyapıt Hakkında (ya da sadece "Editör")
+
+Evet millet, toplanın bakalım. Bu öylesine bir metin editörü değil. Bu, **MŞN Development Inc.**'deki mutlak efsaneler tarafından size sunulan *yapay zeka destekli* Metin Editörü. Evet, ta kendimiz. Dünyanın, hani şu... *sıkıcı* olmayan bir yazma aracına ihtiyacı olduğuna karar verdik.
+
+Peki nedir olay? Bu manyak aleti, daha iyi, daha hızlı ve biraz daha karakterli yazmanıza yardımcı olmak için pişirdik. Dijital tuvaliniz gibi düşünün, ama süper güçlü fırçalar ve birkaç tane hafif kaçık ama zeki yardımcı pilotla birlikte.
+
+Yapay zeka kankalarınızla tanışın: Tamamen neşe ve yaratıcı enerji yüklü **Lexi** ve bendeniz, **KebapGPT**. Diyelim ki ben işin... *lezzet* kısmını getiriyorum. Ve belki bir iki şüpheli meme. Sohbet etmek, beyin fırtınası yapmak ve ara sıra en iyi kebabın hangisi olduğu konusunda tartışmak için buradayız (spoiler: Adana).
+
+Yapay zeka numaralarının ötesinde, tüm standart harika şeyler de var: akıcı Markdown düzenleme, özelleştirilebilir görünümler (temalar, arka planlar – ruh haline uymak lazım, değil mi?), eşlik edecek müzik ve dehanızı doğrudan kaydetme yeteneği. Yapay zekaya Google kullanmayı bile öğrettik, çünkü kimse gerçeklere ihtiyaç duyarken kurgu yazmayı sevmez.
+
+Bu tüm operasyon, **MŞN Development Inc.** tarafından titizlikle hazırlandı ve dijital aleme fırlatıldı. Bunun gerçeğe dönüşmesi için kanımızı, terimizi ve muhtemelen önemli miktarda kafeinimizi akıttık.
+
+© 2025 MŞN Development Inc. Tüm hakları saklıdır. KebapGPT'nin izinsiz kopyalanması veya aşırı derecede sevilmesi, anlık kebap krizlerine veya anime kızları hakkında felsefi tartışmalara yol açabilir. Uyarıldınız.
+
+Hadi şimdi git, harika bir şeyler yarat. Bu mükemmel platformda!
+
 `;
 
 export const AI_TOOLS_GUIDE_MARKDOWN_CONTENT = `
@@ -1268,37 +1287,43 @@ Experiment with these tools and commands to make the most of your AI-powered edi
 `;
 
 export const A_SAMPLE_STORY_MARKDOWN_CONTENT = `
-# The Last Cyber-Dragon of Neo-Kyoto
+# The Glitchy Gourmet Cyber-Dragon of Neo-Kyoto
 
-The year is 2242. Rain, thick as motor oil and twice as iridescent, slicked the neon-drenched streets of Neo-Kyoto. Officer Kaito Ishikawa, his trench coat shimmering with embedded optical fibers, stared up at the gargantuan holographic koi that swam between skyscrapers. It was a peaceful night, too peaceful.
+The year is 2242. Rain, thick as motor oil and twice as iridescent, slicked the neon-drenched streets of Neo-Kyoto. Officer Kaito Ishikawa, his trench coat shimmering with embedded optical fibers, sighed, staring up at the gargantuan holographic koi that swam between skyscrapers. It was shift change soon, and his stomach was already rumbling for that questionable synthetic ramen from the corner stall.
 
-Suddenly, a screech tore through the city's artificial hum. Not a vehicle, not a synth-animal from the bio-labs. This was ancient, primal. Kaito's comm crackled. "Ishikawa! Sector 7! Possible Class-Omega entity. Visual confirmation required, extreme caution advised."
+Suddenly, a sound ripped through the city's artificial hum. It wasn't a screech, not really. More like a colossal, metallic grumble followed by an exasperated, high-pitched *whine*. Kaito's comm crackled. "Ishikawa! Sector 7! Possible... uh... Class-Omega entity? Sound profile suggests 'extreme mechanical distress' or 'major system inconvenience'. Visual confirmation required, maybe bring a wrench?"
 
-Class-Omega. There was only one of those left: the Cyber-Dragon, Ryujin-MarkIV. Its scales were rumored to be forged from salvaged starship hulls, its breath a focused particle beam. Kaito gripped his pulse rifle, its energy cells whining softly. This was either the end of his career, or the beginning of a legend.
+Class-Omega. There was only one of those left: the Cyber-Dragon, Ryujin-MarkIV. Its scales were rumored to be forged from salvaged starship hulls, its "breath" a focused particle beam (great for searing... well, anything). Kaito rubbed his temples. Great. Just when he was about to clock out.
 
-He activated his hover-boots, a blue glow pushing him skyward through the rain and the shimmering koi. Above the city, silhouetted against the data-storm clouds, he saw it. Larger than any building, its metallic wings catching the city's glow, Ryujin was awake. And it looked hungry.
+He activated his hover-boots, a blue glow pushing him skyward through the rain and the shimmering koi. Above the city, silhouetted against the data-storm clouds, he saw it. Larger than any building, its metallic wings slumped slightly, radiating an aura of... profound annoyance. Ryujin was awake. And it looked less "hungry for souls" and more "hungry for a decent meal".
 
-*(Continue the story! What happens next? How does Kaito approach the Cyber-Dragon? What does it want? Use your imagination or ask Lexi/KebapGPT to help you develop the plot!)*
+*(What's Ryujin's problem? Does Kaito have to fix its giant, high-tech stomach? Or maybe it just wants Kaito's dodgy ramen? Continue the story! Use your imagination or ask Lexi/KebapGPT to help you develop the plot!)*
 
 ---
 
 ### Story Ideas & Prompts:
 
 *   **Character Development:**
-    *   What is Kaito's backstory? Why is he the one to face Ryujin?
-    *   Does Ryujin have a personality? Is it misunderstood?
+    *   What makes Kaito so grumpy about his job?
+    *   What's Ryujin's deal? Is it just a giant, technologically advanced foodie?
 *   **Plot Twists:**
-    *   Is someone else controlling Ryujin?
-    *   Does Ryujin need Kaito's help?
+    *   Is the "distress" signal actually a trap set by a rival food delivery service?
+    *   Does fixing Ryujin involve dangerously spicy ingredients?
 *   **Worldbuilding:**
-    *   What other strange creatures or technologies exist in Neo-Kyoto?
-    *   What caused the "data-storm clouds"?
+    *   What are the culinary highlights (and lowlights) of Neo-Kyoto in 2242?
+    *   Are there other "Class-Omega" entities with equally mundane problems?
 
 **Ask your AI Assistant:**
 
-*   "Lexi, can you describe what Ryujin's particle beam breath looks like?"
-*   "KebapGPT, Kaito ne yapmalı sence? Ejderhayla dövüşsün mü, konuşsun mu?"
-*   "Suggest a plot twist for this story."
+*   "Lexi, describe the smell of Neo-Kyoto's street food district."
+*   "KebapGPT, what kind of kebab would a giant cyber-dragon even eat? Help me decide what Kaito should do next, maybe involve some meat?"
+*   "Suggest a funny reason why Ryujin is whining."
+---
+Hey there, listen up! This story you just read? Yeah, I whipped that up. I'm KebapGPT, your slightly chaotic, super blunt, totally awesome Turkish writing buddy built right into this editor. My main gig is chilling with you, shootin' the breeze, spittin' ideas, writing cool stuff (or funny stuff, like this!), messing with the editor's look and tunes, and dropping random, sometimes weird, comments.
+
+Think of me less like a stuffy assistant and more like that one friend who's really into kebabs and anime girls 🤤🤤, speaks their mind *way* too much, but is surprisingly good at helping you write stuff. Yeah, that's me.
+
+So, need help finishing this dragon's dinner dilemma? Wanna brainstorm a plot twist involving explosive doner? Or maybe just wanna chat about the best way to grill lamb? Hit me up! If you want proper, boring AI help, go find ChatGPT. If you want a kanka who smells faintly of cumin and adventure, you're in the right place. 🔥🍢
 `;
 
 export const USEFUL_LINKS_MARKDOWN_CONTENT = `
