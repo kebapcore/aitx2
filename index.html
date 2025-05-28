@@ -4,23 +4,65 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Text Editor</title>
+    
+    <!-- Basic Page Needs -->
+    <title>AI Text Editor - Lexi Assistant</title>
+    <meta name="description" content="A web-based text editor with Markdown preview, AI-powered text and image generation, and an interactive writing assistant named Lexi. Features include theme customization, file operations, and voice output for assistant responses." />
+    <meta name="author" content="Your Name/Company" />
+
+    <!-- Favicons -->
+    <!-- Basic SVG Favicon (Modern Browsers) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
+    <!-- For older browsers and specific platforms, you would typically add more links here like:
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest"> 
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5"> 
+    <meta name="msapplication-TileColor" content="#2d89ef"> 
+    -->
+
+    <!-- Theme Color for Mobile Browsers -->
+    <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#f3f4f6" media="(prefers-color-scheme: light)">
+
+    <!-- Open Graph Meta Tags (for Facebook, Discord, WhatsApp, etc.) -->
+    <meta property="og:title" content="AI Text Editor - Lexi Assistant" />
+    <meta property="og:description" content="A web-based text editor with Markdown preview, AI-powered text and image generation, and an interactive writing assistant named Lexi." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="YOUR_CANONICAL_URL_HERE" /> <!-- Replace with your actual app URL -->
+    <meta property="og:image" content="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='630'><rect width='100%' height='100%' fill='%233b82f6'/><text x='50%' y='50%' font-family='Arial, sans-serif' font-size='70' fill='white' text-anchor='middle' dy='.3em'>AI Text Editor 📝</text></svg>" />
+    <!-- For a real app, replace data:image/svg+xml with a URL to a PNG/JPG, e.g., https://yourdomain.com/og-image.png (1200x630px recommended) -->
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="AI Text Editor" />
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AI Text Editor - Lexi Assistant" />
+    <meta name="twitter:description" content="A web-based text editor with Markdown preview, AI-powered text and image generation, and an interactive writing assistant named Lexi." />
+    <meta name="twitter:image" content="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='630'><rect width='100%' height='100%' fill='%233b82f6'/><text x='50%' y='50%' font-family='Arial, sans-serif' font-size='70' fill='white' text-anchor='middle' dy='.3em'>AI Text Editor 📝</text></svg>" />
+    <!-- For a real app, replace data:image/svg+xml with a URL to a PNG/JPG, e.g., https://yourdomain.com/twitter-image.png (at least 280x150px, ideally larger for summary_large_image) -->
+    <!-- <meta name="twitter:site" content="@yourtwitterhandle"> --> 
+    <!-- <meta name="twitter:creator" content="@yourtwitterhandle"> -->
+
+    <!-- Fonts and Tailwind CSS -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <script>
       tailwind.config = {
-        darkMode: 'class', // or 'media' or 'class'
+        darkMode: 'class', 
         theme: {
           extend: {
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
             },
             typography: (theme) => ({
-              DEFAULT: { // Light mode prose
+              DEFAULT: { 
                 css: {
-                  '--tw-prose-body': 'var(--tw-prose-body, theme(\'colors.gray[700]\'))', // Use CSS var, fallback
+                  '--tw-prose-body': 'var(--tw-prose-body, theme(\'colors.gray[700]\'))', 
                   '--tw-prose-headings': 'var(--tw-prose-headings, theme(\'colors.gray[900]\'))',
                   '--tw-prose-lead': 'var(--tw-prose-lead, theme(\'colors.gray[600]\'))',
                   '--tw-prose-links': 'var(--tw-prose-links, theme(\'colors.sky[600]\'))',
@@ -41,11 +83,11 @@
                   h3: { color: 'var(--tw-prose-headings)' },
                   h4: { color: 'var(--tw-prose-headings)' },
                   code: {
-                    backgroundColor: theme('colors.gray[100]'), // Keep specific for non-prose code if needed
+                    backgroundColor: theme('colors.gray[100]'), 
                     padding: '0.2em 0.4em',
                     borderRadius: '0.25rem',
                     fontWeight: '500',
-                    color: 'var(--tw-prose-code)', // Use prose code color
+                    color: 'var(--tw-prose-code)', 
                   },
                   'pre code': {
                     backgroundColor: 'transparent',
@@ -54,7 +96,7 @@
                   },
                 },
               },
-              invert: { // Dark mode prose
+              invert: { 
                 css: {
                   '--tw-prose-body': 'var(--tw-prose-body, theme(\'colors.gray[300]\'))',
                   '--tw-prose-headings': 'var(--tw-prose-headings, theme(\'colors.gray[100]\'))',
@@ -77,11 +119,11 @@
                   h3: { color: 'var(--tw-prose-headings)' },
                   h4: { color: 'var(--tw-prose-headings)' },
                   code: {
-                    backgroundColor: theme('colors.gray[700]'), // Keep specific for non-prose code if needed
+                    backgroundColor: theme('colors.gray[700]'), 
                     padding: '0.2em 0.4em',
                     borderRadius: '0.25rem',
                     fontWeight: '500',
-                    color: 'var(--tw-prose-code)', // Use prose code color
+                    color: 'var(--tw-prose-code)', 
                   },
                   'pre code': {
                     backgroundColor: 'transparent',
@@ -119,5 +161,3 @@
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>
-<link rel="stylesheet" href="index.css">
-<script src="index.tsx" type="module"></script>
