@@ -1,7 +1,16 @@
 
+
 import { GoogleGenAI, GenerateContentResponse, Chat, Part, GenerateContentParameters } from "@google/genai";
-import { GEMINI_TEXT_MODEL, ASSISTANT_SYSTEM_INSTRUCTION, KEBAPGPT_SYSTEM_INSTRUCTION, AUDIO_MIME_TYPES_SUPPORTED } from '../constants';
-import { AssistantType, ThinkingPerformance, EditorSettings } from "../types";
+import { 
+    GEMINI_TEXT_MODEL, 
+    GEMINI_PRO_MODEL, 
+    ASSISTANT_SYSTEM_INSTRUCTION, 
+    KEBAPGPT_SYSTEM_INSTRUCTION, 
+    AUDIO_MIME_TYPES_SUPPORTED, 
+    MD_EXPORT_SYSTEM_INSTRUCTION,
+    AI_THEME_GENERATION_SYSTEM_INSTRUCTION
+} from '../constants';
+import { AssistantType, ThinkingPerformance, EditorSettings, CustomThemeDefinition } from "../types";
 
 let ai: GoogleGenAI | null = null;
 
@@ -49,8 +58,14 @@ const fileToGenerativePart = async (file: File): Promise<Part> => {
   };
 };
 
-const getEffectiveModelName = (editorSettings?: EditorSettings): string => {
-    return editorSettings?.customModelName?.trim() || GEMINI_TEXT_MODEL;
+const getEffectiveModelName = (editorSettings?: EditorSettings, thinkingPerformance?: ThinkingPerformance): string => {
+    if (editorSettings?.customModelName?.trim()) {
+        return editorSettings.customModelName.trim();
+    }
+    if (thinkingPerformance === 'advanced') {
+        return GEMINI_PRO_MODEL; 
+    }
+    return GEMINI_TEXT_MODEL; 
 }
 
 const getEffectiveSystemInstruction = (assistantType: AssistantType, editorSettings?: EditorSettings): string => {
@@ -65,14 +80,14 @@ const getEffectiveSystemInstruction = (assistantType: AssistantType, editorSetti
 export const startAssistantChat = (
     assistantType: AssistantType, 
     thinkingPerformance: ThinkingPerformance,
-    editorSettings?: EditorSettings // Pass current editor settings
+    editorSettings?: EditorSettings 
 ): Chat | null => {
   if (!ai) {
     console.error("AI service not initialized for chat.");
     return null;
   }
 
-  const effectiveModelName = getEffectiveModelName(editorSettings);
+  const effectiveModelName = getEffectiveModelName(editorSettings, thinkingPerformance);
   const effectiveSystemInstruction = getEffectiveSystemInstruction(assistantType, editorSettings);
 
   if (assistantChat && 
@@ -96,9 +111,12 @@ export const startAssistantChat = (
         tools: [{googleSearch: {}}], 
      };
 
-     if (thinkingPerformance === 'fastest' && effectiveModelName === "gemini-2.5-flash-preview-04-17") {
+     if (thinkingPerformance === 'fastest' && effectiveModelName === GEMINI_TEXT_MODEL) {
          config.thinkingConfig = { thinkingBudget: 0 };
+     } else if (effectiveModelName !== GEMINI_TEXT_MODEL) { // For Pro model or other custom models, ensure thinkingConfig is not applied
+        delete config.thinkingConfig;
      }
+
 
      assistantChat = ai.chats.create({
         model: effectiveModelName,
@@ -145,16 +163,19 @@ export const sendAudioAndPromptToAssistantStream = async (
     const audioPart = await fileToGenerativePart(audioFile);
     const textPart = { text: userPrompt };
     
-    const effectiveModelName = getEffectiveModelName(editorSettings);
+    const effectiveModelName = getEffectiveModelName(editorSettings, thinkingPerformance);
     const effectiveSystemInstruction = getEffectiveSystemInstruction(assistantType, editorSettings);
 
     const modelConfig: GenerateContentParameters['config'] = {
       systemInstruction: effectiveSystemInstruction,
       tools: [{googleSearch: {}}], 
     };
-    if (thinkingPerformance === 'fastest' && effectiveModelName === "gemini-2.5-flash-preview-04-17") {
+    
+    if (thinkingPerformance === 'fastest' && effectiveModelName === GEMINI_TEXT_MODEL) {
          modelConfig.thinkingConfig = { thinkingBudget: 0 };
-     }
+    } else if (effectiveModelName !== GEMINI_TEXT_MODEL) {
+        delete modelConfig.thinkingConfig;
+    }
 
     const contents: GenerateContentParameters['contents'] = { parts: [audioPart, textPart] }; 
     
@@ -168,6 +189,65 @@ export const sendAudioAndPromptToAssistantStream = async (
     console.error(`Error sending audio and prompt to ${assistantType}:`, error);
     throw error;
   }
+};
+
+export const getMarkdownExportContent = async (textContent: string): Promise<string> => {
+    if (!ai) {
+        console.error("AI service not initialized for Markdown export.");
+        throw new Error("AI service not initialized.");
+    }
+    try {
+        const response = await ai.models.generateContent({
+            model: GEMINI_TEXT_MODEL, 
+            contents: textContent,
+            config: {
+                systemInstruction: MD_EXPORT_SYSTEM_INSTRUCTION,
+            },
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Error getting Markdown export content from AI:", error);
+        throw error;
+    }
+};
+
+
+export const generateCustomThemeAI = async (prompt: string): Promise<Omit<CustomThemeDefinition, 'id'> | null> => {
+    if (!ai) {
+        console.error("AI service not initialized for theme generation.");
+        throw new Error("AI service not initialized.");
+    }
+    try {
+        const response = await ai.models.generateContent({
+            model: GEMINI_TEXT_MODEL, // Flash model is fine for this structured output
+            contents: prompt,
+            config: {
+                systemInstruction: AI_THEME_GENERATION_SYSTEM_INSTRUCTION,
+                responseMimeType: "application/json",
+            },
+        });
+        
+        let jsonStr = response.text.trim();
+        const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
+        const match = jsonStr.match(fenceRegex);
+        if (match && match[2]) {
+          jsonStr = match[2].trim();
+        }
+        
+        const parsedData = JSON.parse(jsonStr) as Omit<CustomThemeDefinition, 'id'>;
+
+        // Basic validation of the parsed structure
+        if (parsedData && parsedData.name && typeof parsedData.isDark === 'boolean' && parsedData.variables) {
+            return parsedData;
+        } else {
+            console.error("AI generated theme data is not in the expected format:", parsedData);
+            throw new Error("AI returned an invalid theme structure.");
+        }
+
+    } catch (error) {
+        console.error("Error generating custom theme with AI:", error);
+        throw error;
+    }
 };
 
 

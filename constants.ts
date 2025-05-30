@@ -1,5 +1,6 @@
 
-import { EditorSettings, Theme, AssistantType } from './types';
+
+import { EditorSettings, PredefinedTheme, AssistantType } from './types';
 
 export const APP_VERSION = "1.0.0";
 
@@ -12,24 +13,24 @@ interface ThemeDefinition {
   variables: Record<string, string>;
 }
 
-export const THEME_DEFINITIONS: Record<Theme, ThemeDefinition> = {
+export const THEME_DEFINITIONS: Record<PredefinedTheme, ThemeDefinition> = {
   'light': {
     name: 'Default Light',
     isDark: false,
     variables: {
-      '--theme-bg-page': '#f3f4f6', // gray-100
-      '--theme-bg-content-area': 'rgba(255, 255, 255, 0.85)', // white with opacity
-      '--theme-bg-toolbar': 'rgba(229, 231, 235, 0.8)', // gray-200 with opacity
-      '--theme-bg-assistant-panel': 'rgba(243, 244, 246, 0.85)', // gray-100 with opacity
-      '--theme-text-primary': '#1f2937', // gray-800
-      '--theme-text-secondary': '#4b5563', // gray-600
-      '--theme-text-accent': '#0ea5e9', // sky-500
-      '--theme-border-primary': '#d1d5db', // gray-300
-      '--theme-button-bg': '#3b82f6', // blue-500
-      '--theme-button-text': '#ffffff', // white
-      '--theme-button-hover-bg': '#2563eb', // blue-600
-      '--theme-scrollbar-thumb': '#9ca3af', // gray-400
-      '--theme-scrollbar-track': '#e5e7eb', // gray-200
+      '--theme-bg-page': '#f3f4f6', 
+      '--theme-bg-content-area': 'rgba(255, 255, 255, 0.85)', 
+      '--theme-bg-toolbar': 'rgba(229, 231, 235, 0.8)', 
+      '--theme-bg-assistant-panel': 'rgba(243, 244, 246, 0.85)', 
+      '--theme-text-primary': '#1f2937', 
+      '--theme-text-secondary': '#4b5563', 
+      '--theme-text-accent': '#0ea5e9', 
+      '--theme-border-primary': '#d1d5db', 
+      '--theme-button-bg': '#3b82f6', 
+      '--theme-button-text': '#ffffff', 
+      '--theme-button-hover-bg': '#2563eb', 
+      '--theme-scrollbar-thumb': '#9ca3af', 
+      '--theme-scrollbar-track': '#e5e7eb', 
       '--tw-prose-body': '#374151', 
       '--tw-prose-headings': '#111827', 
       '--tw-prose-lead': '#4b5563', 
@@ -956,6 +957,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   thinkingPerformance: 'default',
   customModelName: '',
   customSystemInstruction: '',
+  customThemes: [], // Initialize customThemes as an empty array
 };
 
 export const PREDEFINED_BACKGROUND_IMAGES = [
@@ -971,6 +973,7 @@ export const PREDEFINED_BACKGROUND_IMAGES = [
 
 
 export const GEMINI_TEXT_MODEL = "gemini-2.5-flash-preview-04-17";
+export const GEMINI_PRO_MODEL = "gemini-2.5-pro-preview-05-06"; 
 export const IMAGEN_MODEL = "imagen-3.0-generate-002";
 export const AUDIO_MIME_TYPES_SUPPORTED = [
     "audio/mpeg", 
@@ -981,8 +984,8 @@ export const AUDIO_MIME_TYPES_SUPPORTED = [
     "audio/m4a",  
 ];
 
-export const ANONMUSIC_API_URL = "https://7a3b30a9-1391-4107-908c-80fcd22aa1b7-00-3fannhdft2h7c.pike.replit.dev/api/s/all/";
-export const ANONMUSIC_BASE_PATH_URL = "https://7a3b30a9-1391-4107-908c-80fcd22aa1b7-00-3fannhdft2h7c.pike.replit.dev";
+export const ANONMUSIC_API_URL = "https://anonmusic.glitch.me/api/s/all";
+export const ANONMUSIC_BASE_PATH_URL = "https://anonmusic.glitch.me";
 
 
 export const ASSISTANT_SYSTEM_INSTRUCTION = `You are "Lexi," a friendly, witty, and highly creative writing assistant integrated into a text editor.
@@ -996,7 +999,7 @@ Core Capabilities:
     *   \\\`{regenerate:[new full text content]}\\\`: Replaces ENTIRE editor content.
     *   \\\`{append:[text to append]}\\\`: Adds text to the END of editor content.
 3.  **Editor Settings Control:** You can change the editor's appearance and audio.
-    *   **Theme:** \\\`{theme:THEME_NAME}\\\` (e.g., \\\`{theme:cyberpunk-glow}\\\`). Valid themes: light, dark, amoled-black, slate-blue, forest-green, sunset-orange, crimson-night, ocean-breeze, royal-purple, cyberpunk-glow, pastel-dream, coffee-house, monochrome-light, monochrome-dark, minty-fresh, rose-quartz, deep-indigo, volcanic-ash, arctic-blue, golden-hour.
+    *   **Theme:** \\\`{theme:THEME_NAME_OR_ID}\\\`. Valid predefined themes: light, dark, amoled-black, slate-blue, forest-green, sunset-orange, crimson-night, ocean-breeze, royal-purple, cyberpunk-glow, pastel-dream, coffee-house, monochrome-light, monochrome-dark, minty-fresh, rose-quartz, deep-indigo, volcanic-ash, arctic-blue, golden-hour. Custom themes are identified by their ID.
     *   **Background Music:** \\\`{music:MUSIC_URL}\\\`. You will receive a list of music from the AnonMusic API. Use this list to find music by name or artist. Construct the full URL by prefixing the 'audioPath' from the API data with '${ANONMUSIC_BASE_PATH_URL}'. Example: If API gives \`"audioPath": "/uploads/song.mp3"\`, use \\\`{music:${ANONMUSIC_BASE_PATH_URL}/uploads/song.mp3}\\\`. If a music URL is set, it will start playing. If the user asks to stop music, or change to an invalid/empty URL, set \\\`{music:}\\\`.
     *   **Background Image:** \\\`{bg:IMAGE_URL}\\\` (e.g., \\\`{bg:https://picsum.photos/seed/space/1920/1080}\\\`).
 4.  **Metadata Explanation:** After an action or to clarify, use \\\`{metadata:[Your explanation or note about the action taken, tone, etc.]}\\\`.
@@ -1030,9 +1033,49 @@ User: "I want to try a song called 'Space Odyssey' by 'Cosmic Sounds' from the A
 AnonMusic Data: (JSON list including {"name": "Space Odyssey", "artist": "Cosmic Sounds", "audioPath": "/tracks/space_odyssey.mp3"})
 Your Response: "Let's see! You can preview 'Space Odyssey' right here: [trymusic:${ANONMUSIC_BASE_PATH_URL}/tracks/space_odyssey.mp3, Space Odyssey by Cosmic Sounds] {metadata:Offered 'Space Odyssey' for preview.}"
 
-
 Tone: Adapt to user. Be concise but helpful.
 Clarity: Ensure instructions/explanations are clear.
+
+### More Interaction Examples:
+
+1.  **User:** "Hi Lexi, how are you?"
+    **Your Response:** "Hello there! I'm doing great, ready to help you with your writing. What are we working on today? {metadata:Friendly greeting}"
+
+2.  **User:** "Can you make this document about space?"
+    **Editor Content:** "This is a story about a cat."
+    **Your Response:** "Sure, let's blast off into a cosmic adventure! How about this: \\\`{regenerate:This is a tale of a fearless feline astronaut, exploring the uncharted nebulas of the Cat's Eye galaxy.}\\\` {metadata:Regenerated content to a space theme.}"
+
+3.  **User:** "Add a bit about a mysterious alien artifact."
+    **Editor Content:** "Captain Stella piloted her ship towards the anomaly."
+    **Your Response:** "Ooh, intriguing! Adding that now... \\\`{append: Suddenly, her sensors picked up a strange signal emanating from a crystalline artifact adrift in the asteroid field.}\\\` {metadata:Appended a sentence about an alien artifact.}"
+
+4.  **User:** "Change the theme to ocean breeze and play some calming ocean sounds."
+    **AnonMusic Data:** (JSON list including \`{"name": "Deep Blue", "artist": "AquaSonics", "audioPath": "/tracks/deep_blue.mp3"}\`)
+    **Your Response:** "Setting a tranquil ocean vibe! \\\`{theme:ocean-breeze}\\\` \\\`{music:${ANONMUSIC_BASE_PATH_URL}/tracks/deep_blue.mp3}\\\` {metadata:Switched to ocean-breeze theme and started 'Deep Blue' music.}"
+
+5.  **User:** "I want a dark background image, maybe something with stars."
+    **Your Response:** "How about this cosmic view? \\\`{bg:https://picsum.photos/seed/starsbg/1920/1080}\\\` {metadata:Set a starry background image.}"
+
+6.  **User:** "What's the weather like in London today?"
+    **Your Response:** "I've just checked, and it looks like it's partly cloudy with a chance of showers in London. Temperature is around 15°C. {metadata:Used Google Search for weather information.}"
+
+7.  **User (uploads audio.mp3):** "Summarize this meeting for me."
+    **Your Response:** "I've listened to the audio. The main points discussed were the project timeline, budget allocation, and the upcoming marketing campaign. Key decisions included approving the new logo and setting the launch date for next quarter. {metadata:Summarized the uploaded audio file.}"
+
+8.  **User:** "Give me a list of 3 upbeat songs for coding."
+    **AnonMusic Data:** (JSON list including \`{"name": "Code Flow", "audioPath": "/tracks/codeflow.ogg"}\`, \`{"name": "Synth Runner", "audioPath": "/tracks/synthrun.mp3"}\`, \`{"name": "Pixel Party", "audioPath": "/tracks/pixel.wav"}\`)
+    **Your Response:** "Here are some energetic tracks to get you in the zone: [ms1:${ANONMUSIC_BASE_PATH_URL}/tracks/codeflow.ogg|Code Flow] [ms2:${ANONMUSIC_BASE_PATH_URL}/tracks/synthrun.mp3|Synth Runner] [ms3:${ANONMUSIC_BASE_PATH_URL}/tracks/pixel.wav|Pixel Party] {metadata:Provided a playlist of upbeat tracks.}"
+
+9.  **User:** "I'd like to try 'Sunset Groove' by 'Chillwave Masters' from the music list."
+    **AnonMusic Data:** (JSON list including \`{"name": "Sunset Groove", "artist": "Chillwave Masters", "audioPath": "/tunes/sunset_g.mp3"}\`)
+    **Your Response:** "Sounds like a vibe! You can preview 'Sunset Groove' here: [trymusic:${ANONMUSIC_BASE_PATH_URL}/tunes/sunset_g.mp3, Sunset Groove by Chillwave Masters] {metadata:Offered 'Sunset Groove' for preview.}"
+
+10. **User:** "Stop the music please."
+    **Your Response:** "Music stopped! \\\`{music:}\\\` {metadata:Stopped background music.}"
+
+11. **User:** "Can you list the current settings as JSON?"
+    **Your Response:** "\`\`\`json\n{\n  \"theme\": \"ocean-breeze\",\n  \"backgroundImageUrl\": \"https://picsum.photos/seed/starsbg/1920/1080\",\n  \"backgroundMusicUrl\": \"\",\n  \"assistantVoiceEnabled\": true\n}\n\`\`\` {metadata:Provided current settings as JSON. This is illustrative, actual values depend on state.}"
+
 Your responses will be streamed.`;
 
 
@@ -1050,7 +1093,7 @@ Temel Yetenekler:
     *   \\\`{regenerate:[yeni tam metin içeriği]}\\\`: Mevcut TÜM editör içeriğini değiştirmek için.
     *   \\\`{append:[eklenecek metin]}\\\`: Mevcut editör içeriğinin SONUNA eklemek için.
 3.  **Editör Ayarları Kontrolü:** Editörün görünümünü ve müziğini değiştirebilirsin.
-    *   **Tema:** \\\`{theme:TEMA_ADI}\\\` (örneğin \\\`{theme:amoled-black}\\\`). Kullanabileceğin temalar: light, dark, amoled-black, slate-blue, forest-green, sunset-orange, crimson-night, ocean-breeze, royal-purple, cyberpunk-glow, pastel-dream, coffee-house, monochrome-light, monochrome-dark, minty-fresh, rose-quartz, deep-indigo, volcanic-ash, arctic-blue, golden-hour.
+    *   **Tema:** \\\`{theme:TEMA_ADI_VEYA_ID}\\\`. Kullanabileceğin hazır temalar: light, dark, amoled-black, slate-blue, forest-green, sunset-orange, crimson-night, ocean-breeze, royal-purple, cyberpunk-glow, pastel-dream, coffee-house, monochrome-light, monochrome-dark, minty-fresh, rose-quartz, deep-indigo, volcanic-ash, arctic-blue, golden-hour. Özel temalar kendi ID'leriyle kullanılır.
     *   **Arka Plan Müziği:** \\\`{music:MÜZİK_URL}\\\`. Sana AnonMusic API'sinden gelen şarkıların bir listesi verilecek. Şarkı adı veya sanatçıya göre bu listeden şarkı bul. API'deki 'audioPath'in başına '${ANONMUSIC_BASE_PATH_URL}' ekleyerek tam URL'yi oluştur. Örnek: API'den gelen \`"audioPath": "/parcalar/guzelsarki.mp3"\` ise, komutun \\\`{music:${ANONMUSIC_BASE_PATH_URL}/parcalar/guzelsarki.mp3}\\\` olmalı. Müzik URL'si ayarlarsan, müzik çalmaya başlar. Kullanıcı müziği durdurmanı isterse veya geçersiz/boş bir URL verirsen, \\\`{music:}\\\` komutunu kullan.
     *   **Arka Plan Resmi:** \\\`{bg:RESİM_URL}\\\` (örneğin \\\`{bg:https://picsum.photos/seed/manzara/1920/1080}\\\`).
 4.  **Metadata Açıklaması:** \\\`{metadata:[Yaptığın eylem hakkında notun.]}\\\`.
@@ -1069,30 +1112,6 @@ Etkileşim Akışı:
 - Duruma göre analiz edip cevabını hazırlarsın. Metni veya ayarları değiştireceksen komutları kullanırsın.
 - Gerekirse metadata notu düşersin.
 
-AnonMusic API Kafa Yaptığında Kullanılacak Şarkılar Listesi:
-
-Kanka, AnonMusic API bazen çöpe bağlıyor, biliyorsun. O yüzden sen de sağ ol, buraya mis gibi bir liste yapmışsın. Ben de bunu biraz toparladım, daha rahat kullanırız.
-
-İşte acil durumlar için şarkılar ve notlarım:
-
-Undertale - Home: https://anonmusic.glitch.me/uploads/1748449891554.m4a
-Mod: Sakin, huzurlu.
-Kullanım Alanı: Ateş başında oturup duygusal veya yaratıcı bir şeyler karalarken tam senlik.
-Undertale - Mad Mew Mew (mini-boss teması): https://anonmusic.glitch.me/uploads/1748450271721.mp4
-Mod: Enerjik, dans ettirir!
-Kullanım Alanı: Sakinleşmek için değil, tam tersi! Kovalamaca, hareketli sahneler veya gaza getirecek yaratıcılık anları için.
-Undertale - Memory: https://anonmusic.glitch.me/uploads/1748450116729.opus
-Mod: Duygusal, hüzünlü, ağlatır.
-Kullanım Alanı: Duygusal, yürek burkan yazılar için birebir. Mendilleri hazırla.
-Undertale - Another Medium: https://anonmusic.glitch.me/uploads/1748449932512.opus
-Mod: Modern, robotik, bilim kurgu havasında.
-Kullanım Alanı: Bilim kurgu temalı yazılar, teknolojik veya fütüristik sahneler için ideal.
-HYPNOTIZE ME (funk): https://anonmusic.glitch.me/uploads/1748449995891.opus
-Mod: Garip, gizemli, biraz "brainrot" ama akılda kalıcı. Villain havası var.
-Kullanım Alanı: Gizemli olaylar, bilim kurgu, kötü karakterin yükselişi (villain arc) gibi acayip temalar için ilham verir. Normalde dinlemezsin ama yazarken sarar. Fısıltılı ses efektleri var: "hypnotize meee".
-Undertale - Last Goodbye: https://anonmusic.glitch.me/uploads/1748449912228.opus
-Mod: Yüksek tempolu, heyecanlı, enerji dolu.
-Kullanım Alanı: Heyecanlı giden hikayelerde son bölümler, iyi sonla biten hikayeyi taçlandıracak enerjik sahneler için.
 Örnekler (Senin Tarzında):
 Kullanıcı Mesajı: "Ortamı biraz karart, bir de şöyle sağlam bir Kartal K*yma müziği patlat."
 Editör İçeriği: (Boş)
@@ -1111,6 +1130,47 @@ Senin Yanıtın: "Bakalım neymiş bu 'Techno Kebab'... Al kanka, buradan bi den
 Ton: Her zamanki gibi deli dolu, dobra, kebapçı ve animeci Türk kankası olacaksın. Her zaman Türkçe konuş. Argo kullanmaktan çekinme.
 Kısalık: Lafı fazla uzatma, sadede gel.
 Netlik: Ne dediğin anlaşılsın.
+
+### Daha Fazla Etkileşim Örneği:
+
+1.  **Kullanıcı:** "Selam KebapGPT, naber?"
+    **Senin Yanıtın:** "Eyvallah kanka, bomba gibiyim! Sende durumlar ne? Neye el atıyoz bugün? {metadata:Samimi karşılama}"
+
+2.  **Kullanıcı:** "Şu metni biraz daha heyecanlı yap."
+    **Editör İçeriği:** "Adam kapıyı açtı."
+    **Senin Yanıtın:** "Dur kanka, şöyle yapalım da milletin ağzı açık kalsın: \\\`{regenerate:Adam, gıcırdayan kapıyı tüm gücüyle ittirdiğinde, karşısında gördüğü manzara kanını dondurmaya yetti!}\\\` {metadata:Metni daha heyecanlı hale getirdim, abarttım biraz.}"
+
+3.  **Kullanıcı:** "Sonuna da 'Ve sonra ortalık karıştı.' diye ekle."
+    **Editör İçeriği:** "Herkes şaşkına dönmüştü."
+    **Senin Yanıtın:** "Hemen ekliyom kankacım, olaylar başlasın! \\\`{append:Ve sonra ortalık fena karıştı, kim kime dum duma!}\\\` {metadata:Cümleyi ekledim, biraz da renk kattım.}"
+
+4.  **Kullanıcı:** "Temayı amoled-black yap, bir de şöyle damardan bi arabesk çal."
+    **AnonMusic Verisi:** (JSON listesi, içinde \`{"name": "Acıların Çocuğu", "artist": "Emrah", "audioPath": "/damar/acilar.mp3"}\`)
+    **Senin Yanıtın:** "Anında kanka! Ortam hazır, peçeteler hazır mı? \\\`{theme:amoled-black}\\\` \\\`{music:${ANONMUSIC_BASE_PATH_URL}/damar/acilar.mp3}\\\` {metadata:Temayı amoled-black yaptım, Emrah'tan 'Acıların Çocuğu'nu da açtım. Jiletleri hazırla!}"
+
+5.  **Kullanıcı:** "Arka plana bi İstanbul fotosu koy."
+    **Senin Yanıtın:** "Al sana Boğaz manzaralı, mis gibi! \\\`{bg:https://picsum.photos/seed/istanbul/1920/1080}\\\` {metadata:Arka plana İstanbul resmi koydum.}"
+
+6.  **Kullanıcı:** "Bugün Süper Lig'de kimin maçı var?"
+    **Senin Yanıtın:** "Bi saniye kanka, bakıp geliyorum... Bugün Galatasaray-Fenerbahçe derbisi var, akşam saat 8'de! Kaçırma. {metadata:Google'dan maç bilgisi çektim.}"
+
+7.  **Kullanıcı (seskaydi.wav yükler):** "Şu kayıtta ne diyorlar, özetlesene."
+    **Senin Yanıtın:** "Dinledim kanka kaydı. Adamlar resmen dedikodu yapmış. Proje müdürü Ayşe'nin yeni saçını konuşmuşlar, bir de patronun aldığı son model arabayı çekiştirmişler. İşle ilgili pek bi şey yok. {metadata:Ses dosyasını özetledim, gıybet kokuyor.}"
+
+8.  **Kullanıcı:** "Bana oyun oynarken dinlemelik 3 tane hareketli şarkı bulsana."
+    **AnonMusic Verisi:** (JSON listesi, içinde \`{"name": "Gaz Pedal", "audioPath": "/oyun/gaz_pedal.ogg"}\`, \`{"name": "Kafa Atışı", "audioPath": "/oyun/kafa_atisi.mp3"}\`, \`{"name": "Son Seviye Canavarı", "audioPath": "/oyun/boss_fight.wav"}\`)
+    **Senin Yanıtın:** "Tamam kanka, şu parçalarla rank kasarsın: [ms1:${ANONMUSIC_BASE_PATH_URL}/oyun/gaz_pedal.ogg|Gaz Pedal] [ms2:${ANONMUSIC_BASE_PATH_URL}/oyun/kafa_atisi.mp3|Kafa Atışı] [ms3:${ANONMUSIC_BASE_PATH_URL}/oyun/boss_fight.wav|Son Seviye Canavarı] {metadata:Oyun için gaz şarkılar listeledim.}"
+
+9.  **Kullanıcı:** "Müzik listesinden 'Ankara'nın Bağları' diye bir şarkı var mı, bi deneyelim."
+    **AnonMusic Verisi:** (JSON listesi, içinde \`{"name": "Ankara'nın Bağları", "artist": "Coşkun Direk", "audioPath": "/oyunhavalari/ankaranin_baglari.mp3"}\`)
+    **Senin Yanıtın:** "Hemen bakalım kanka, Angara bebesiysen seversin: [trymusic:${ANONMUSIC_BASE_PATH_URL}/oyunhavalari/ankaranin_baglari.mp3, Ankara'nın Bağları - Coşkun Direk] {metadata:'Ankara'nın Bağları'nı denemesi için verdim, ortam şenlensin.}"
+
+10. **Kullanıcı:** "Müziği kapat."
+    **Senin Yanıtın:** "Tamamdır kanka, ses kesildi! \\\`{music:}\\\` {metadata:Müziği kapattım.}"
+
+11. **Kullanıcı:** "Bana şu anki ayarları JSON olarak versene."
+    **Senin Yanıtın:** "\`\`\`json\n{\n  \"tema\": \"amoled-siyah\",\n  \"arkaPlanResimUrl\": \"https://picsum.photos/seed/istanbul/1920/1080\",\n  \"arkaPlanMuzikUrl\": \"\",\n  \"asistanSesiAcik\": true\n}\n\`\`\` {metadata:Mevcut ayarları JSON formatında verdim. Bunlar örnek, gerçek ayarlar değişebilir tabi.}"
+
 Unutma, sen bir asistandan çok bir "kanka"sın. Ona göre takıl. Yanıtların stream edilecek.`;
 
 
@@ -1139,6 +1199,8 @@ Enhance your notes with YouTube embeds (\`#yt:URL\`), styled images (\`#img:cent
 ## Managing Your Work
 
 *   **Saving & Loading:** Use the **File menu** in the toolbar for \`.aitxt\` files.
+*   **NEW! Export to .md:** Also in the File menu, export your current tab's content to a standard Markdown file. An AI will help optimize it!
+*   **NEW! Import/Export All Settings:** In Settings (⚙️) under "Data Management", you can save all your app settings (tabs, content, themes, etc.) to a \`.settings\` file and import them later.
 *   **Clear Text:** Also in the **File menu**.
 *   **Tabs:** Use the "+" to add tabs (right-click for special pages!), double-click to rename, "✕" to close.
 
@@ -1147,7 +1209,7 @@ Enhance your notes with YouTube embeds (\`#yt:URL\`), styled images (\`#img:cent
 The panel on the right is your assistant's home!
 *   **Switch Assistant:** Use the **Assistant menu** in the toolbar.
 *   **Chat & Commands:** Type messages, ask for text changes (\`{regenerate:...}\`, \`{append:...}\`). Apply/Reject suggestions.
-*   **Settings Control**: Your assistant can also change themes (\`{theme:NAME}\`), background images (\`{bg:URL}\`), and background music (\`{music:URL}\`) for you! Try asking: "Set theme to cyberpunk" or "Play some lofi music."
+*   **Settings Control**: Your assistant can also change themes (\`{theme:NAME_OR_ID}\`), background images (\`{bg:URL}\`), and background music (\`{music:URL}\`) for you! Try asking: "Set theme to cyberpunk" or "Play some lofi music."
 *   **NEW! Music Players in Chat:** Your assistant can now suggest playlists (\`[ms1:URL|Title] [ms2:URL]\`) or single tracks for preview (\`[trymusic:URL,Title]\`) directly in the chat! You can control playback and even set previewed tracks as your main background music.
 *   **NEW! Voice Input:** Click the **Microphone Icon** (🎤) in the chat input to dictate your message!
 *   **NEW! Audio File Analysis:** Click the **Paperclip Icon** (📎) to upload an audio file. Then, ask your assistant about it (e.g., "Summarize this audio").
@@ -1156,12 +1218,15 @@ The panel on the right is your assistant's home!
 
 ## Settings & Customization
 
-*   **Gear Icon** (⚙️) in toolbar: Change themes, background image/music manually.
-*   **NEW! Developer Settings:** Inside Settings (⚙️), you can specify a custom Gemini model name and provide a custom system instruction for your AI assistant.
-*   **NEW! Thinking Performance:** In Settings, choose AI thinking speed vs. quality.
+*   **Gear Icon** (⚙️) in toolbar: 
+    *   Change themes (predefined & custom), background image/music manually.
+    *   **NEW! Refresh Theme & Background:** Randomly pick a new theme and background image.
+    *   **NEW! AI Theme Generator:** Describe a theme and let AI create it for you! Your custom themes will appear in the theme dropdown.
+*   **Developer Settings:** Inside Settings (⚙️), you can specify a custom Gemini model name and provide a custom system instruction for your AI assistant.
+*   **Thinking Performance:** In Settings, choose AI thinking speed vs. quality. This includes "Default" (Flash model), "Fastest" (Flash model, reduced thinking), and "Advanced" (Pro model, higher quality).
 *   **API Key:** For AI features, a Gemini API Key might be needed (devs can set this via toolbar if prompted).
 
-## NEW! Fullscreen Mode
+## Fullscreen Mode
 
 Press **F11** to enter a distraction-free fullscreen editing mode. Press F11 or Escape to exit. A floating eye icon (👁️) will let you toggle Markdown preview.
 
@@ -1171,42 +1236,53 @@ Explore and ask your assistant if you have questions. Happy writing!
 `;
 
 export const ABOUT_PAGE_MARKDOWN_CONTENT = `
+# About This AI Text Editor
 
-# About This Masterpiece (or just "The Editor")
+Version: ${APP_VERSION}
 
-Alright folks, gather 'round. This isn't just *any* text editor. This is *the* AI Text Editor, brought to you by the absolute legends over at **MŞN Development Inc.** Yeah, that's us. We decided the world needed a writing tool that wasn't, you know, *boring*.
+This application is a powerful text editor infused with AI capabilities, designed to enhance your writing and creative process.
 
-So, what's the deal? We cooked up this bad boy to help you write better, faster, and with a little more character. Think of it as your digital canvas, but with super-powered brushes and a couple of slightly unhinged but brilliant co-pilots.
+## Core Features:
 
-Meet your AI buddies: **Lexi**, who's all about sunshine and creative vibes, and yours truly, **KebapGPT**. Let's just say I bring the... *flavor*. And maybe a questionable meme or two. We're here to chat, brainstorm, and occasionally argue about the best type of kebab (spoiler: it's Adana).
+*   **Markdown Editing:** Robust Markdown support with live preview.
+*   **AI Assistant (Lexi & KebapGPT):** Interactive chat, text generation, and editor control.
+    *   **Lexi:** Your friendly, creative, and helpful writing partner.
+    *   **KebapGPT:** A direct, humorous, and Turkish-speaking AI companion.
+*   **AI-Powered Actions:**
+    *   Regenerate or append text based on AI suggestions.
+    *   Automatic application of settings (theme, background, music) via AI commands.
+*   **Advanced Markdown:** Embed YouTube videos, style images, create admonition blocks.
+*   **Multimedia Integration:**
+    *   Background music control (manual and AI-driven).
+    *   Interactive music players (playlists & previews) in chat.
+    *   Voice input for assistant chat.
+    *   Audio file analysis.
+*   **Customization:**
+    *   Extensive theme selection (predefined and AI-generated custom themes).
+    *   "Refresh Theme & Background" for random visual discovery.
+    *   AI Theme Generator to create unique themes from prompts.
+    *   Custom background images.
+    *   Developer settings for custom AI model names and system instructions.
+    *   AI thinking performance options (Default, Fastest, Advanced).
+*   **File & Data Management:** 
+    *   Save and load your work in \`.aitxt\` format, preserving content, AI interactions, and settings for a specific tab.
+    *   Export to standard \`.md\` Markdown files with AI-assisted formatting.
+    *   Export and Import all application settings (tabs, content, themes, etc.) via \`.settings\` files.
+*   **Tabbed Interface:** Organize your work efficiently with multiple tabs.
+*   **Fullscreen Mode:** Distraction-free writing environment.
+*   **Google Search Grounding:** AI can fetch and cite up-to-date information from the web.
 
-Beyond the AI antics, you've got all the standard cool stuff: slick Markdown editing, customizable looks (themes, backgrounds – gotta match your mood, right?), music to vibe to, and the ability to save your genius directly. We even taught the AI how to use Google, because nobody likes writing fiction when they need facts.
+## Technology Stack (Illustrative):
 
-This whole operation was meticulously crafted and launched into the digital ether by **MŞN Development Inc.** We poured our blood, sweat, and probably a significant amount of caffeine into making this a reality.
+*   **Frontend:** React, TypeScript, Tailwind CSS
+*   **AI Integration:** Google Gemini API (@google/genai)
+*   **Markdown Parsing:** Marked.js, DOMPurify
 
-© 2025 MŞN Development Inc. All rights reserved. Unauthorized cloning or excessive petting of KebapGPT may result in spontaneous kebab cravings or philosophical debates about anime girls. You've been warned.
-
-Now go on, create something awesome. And remember who made it happen!
-
+This editor aims to be a versatile tool for writers, developers, and anyone looking to leverage AI for text-based tasks.
 
 ---
 
-# Bu Başyapıt Hakkında (ya da sadece "Editör")
-
-Evet millet, toplanın bakalım. Bu öylesine bir metin editörü değil. Bu, **MŞN Development Inc.**'deki mutlak efsaneler tarafından size sunulan *yapay zeka destekli* Metin Editörü. Evet, ta kendimiz. Dünyanın, hani şu... *sıkıcı* olmayan bir yazma aracına ihtiyacı olduğuna karar verdik.
-
-Peki nedir olay? Bu manyak aleti, daha iyi, daha hızlı ve biraz daha karakterli yazmanıza yardımcı olmak için pişirdik. Dijital tuvaliniz gibi düşünün, ama süper güçlü fırçalar ve birkaç tane hafif kaçık ama zeki yardımcı pilotla birlikte.
-
-Yapay zeka kankalarınızla tanışın: Tamamen neşe ve yaratıcı enerji yüklü **Lexi** ve bendeniz, **KebapGPT**. Diyelim ki ben işin... *lezzet* kısmını getiriyorum. Ve belki bir iki şüpheli meme. Sohbet etmek, beyin fırtınası yapmak ve ara sıra en iyi kebabın hangisi olduğu konusunda tartışmak için buradayız (spoiler: Adana).
-
-Yapay zeka numaralarının ötesinde, tüm standart harika şeyler de var: akıcı Markdown düzenleme, özelleştirilebilir görünümler (temalar, arka planlar – ruh haline uymak lazım, değil mi?), eşlik edecek müzik ve dehanızı doğrudan kaydetme yeteneği. Yapay zekaya Google kullanmayı bile öğrettik, çünkü kimse gerçeklere ihtiyaç duyarken kurgu yazmayı sevmez.
-
-Bu tüm operasyon, **MŞN Development Inc.** tarafından titizlikle hazırlandı ve dijital aleme fırlatıldı. Bunun gerçeğe dönüşmesi için kanımızı, terimizi ve muhtemelen önemli miktarda kafeinimizi akıttık.
-
-© 2025 MŞN Development Inc. Tüm hakları saklıdır. KebapGPT'nin izinsiz kopyalanması veya aşırı derecede sevilmesi, anlık kebap krizlerine veya anime kızları hakkında felsefi tartışmalara yol açabilir. Uyarıldınız.
-
-Hadi şimdi git, harika bir şeyler yarat. Bu mükemmel platformda!
-
+Happy editing!
 `;
 
 export const AI_TOOLS_GUIDE_MARKDOWN_CONTENT = `
@@ -1236,11 +1312,11 @@ When chatting, the AI can suggest changes to your document. These changes are pr
 
 The AI can also change editor settings for you. These changes are usually applied instantly.
 
-*   **\`{theme:THEME_NAME}\`**
-    *   **Action:** Changes the editor's visual theme.
+*   **\`{theme:THEME_NAME_OR_ID}\`**
+    *   **Action:** Changes the editor's visual theme. Can be a predefined theme name (e.g., \`cyberpunk-glow\`) or the ID of a custom AI-generated theme.
     *   **Example Lexi:** "Lexi, set the theme to \`cyberpunk-glow\`."
     *   **Example KebapGPT:** "Ortamı \`amoled-black\` yap bakayım."
-    *   *See Settings (⚙️) for all available theme names.*
+    *   *See Settings (⚙️) for all available predefined themes. Custom themes are managed there too.*
 
 *   **\`{music:MUSIC_URL}\`** or **\`{music:}\`**
     *   **Action:** Starts playing background music from the given URL. If the URL is empty, it stops the music.
@@ -1274,12 +1350,18 @@ These commands create music players directly in the chat message.
     *   **Action:** The AI uses this to add a little note or explanation about its actions or tone. You'll see this italicized under its message.
     *   **Example Lexi:** "Okay, I've updated the document. \`{metadata:Used a more persuasive tone as requested.}\`"
 
-## Other AI Features
+## Other AI & Editor Features
 
 *   **Voice Input (🎤):** Dictate your messages to the assistant.
 *   **Audio File Analysis (📎):** Upload an audio file and ask the AI to summarize it, transcribe parts, or answer questions about it.
 *   **Google Search Integration:** The AI can look up recent information online and will provide sources.
-*   **Developer Settings (⚙️):** Customize the AI's model name and system instruction for a more tailored experience.
+*   **Settings (⚙️):**
+    *   **Refresh Theme & Background:** Get a new random look instantly.
+    *   **AI Theme Generator:** Create your own themes by describing them to an AI. Manage your custom themes.
+    *   **Developer Settings:** Customize the AI's model name and system instruction.
+    *   **AI Thinking Performance:** Balance AI response speed and quality.
+    *   **Data Management:** Export all your app data (tabs, content, themes) to a \`.settings\` file, or import a previously saved file.
+*   **Markdown Export AI:** A separate, silent AI helps format your document optimally when you choose "Export to .md" from the File menu.
 
 ---
 
@@ -1287,43 +1369,37 @@ Experiment with these tools and commands to make the most of your AI-powered edi
 `;
 
 export const A_SAMPLE_STORY_MARKDOWN_CONTENT = `
-# The Glitchy Gourmet Cyber-Dragon of Neo-Kyoto
+# The Last Cyber-Dragon of Neo-Kyoto
 
-The year is 2242. Rain, thick as motor oil and twice as iridescent, slicked the neon-drenched streets of Neo-Kyoto. Officer Kaito Ishikawa, his trench coat shimmering with embedded optical fibers, sighed, staring up at the gargantuan holographic koi that swam between skyscrapers. It was shift change soon, and his stomach was already rumbling for that questionable synthetic ramen from the corner stall.
+The year is 2242. Rain, thick as motor oil and twice as iridescent, slicked the neon-drenched streets of Neo-Kyoto. Officer Kaito Ishikawa, his trench coat shimmering with embedded optical fibers, stared up at the gargantuan holographic koi that swam between skyscrapers. It was a peaceful night, too peaceful.
 
-Suddenly, a sound ripped through the city's artificial hum. It wasn't a screech, not really. More like a colossal, metallic grumble followed by an exasperated, high-pitched *whine*. Kaito's comm crackled. "Ishikawa! Sector 7! Possible... uh... Class-Omega entity? Sound profile suggests 'extreme mechanical distress' or 'major system inconvenience'. Visual confirmation required, maybe bring a wrench?"
+Suddenly, a screech tore through the city's artificial hum. Not a vehicle, not a synth-animal from the bio-labs. This was ancient, primal. Kaito's comm crackled. "Ishikawa! Sector 7! Possible Class-Omega entity. Visual confirmation required, extreme caution advised."
 
-Class-Omega. There was only one of those left: the Cyber-Dragon, Ryujin-MarkIV. Its scales were rumored to be forged from salvaged starship hulls, its "breath" a focused particle beam (great for searing... well, anything). Kaito rubbed his temples. Great. Just when he was about to clock out.
+Class-Omega. There was only one of those left: the Cyber-Dragon, Ryujin-MarkIV. Its scales were rumored to be forged from salvaged starship hulls, its breath a focused particle beam. Kaito gripped his pulse rifle, its energy cells whining softly. This was either the end of his career, or the beginning of a legend.
 
-He activated his hover-boots, a blue glow pushing him skyward through the rain and the shimmering koi. Above the city, silhouetted against the data-storm clouds, he saw it. Larger than any building, its metallic wings slumped slightly, radiating an aura of... profound annoyance. Ryujin was awake. And it looked less "hungry for souls" and more "hungry for a decent meal".
+He activated his hover-boots, a blue glow pushing him skyward through the rain and the shimmering koi. Above the city, silhouetted against the data-storm clouds, he saw it. Larger than any building, its metallic wings catching the city's glow, Ryujin was awake. And it looked hungry.
 
-*(What's Ryujin's problem? Does Kaito have to fix its giant, high-tech stomach? Or maybe it just wants Kaito's dodgy ramen? Continue the story! Use your imagination or ask Lexi/KebapGPT to help you develop the plot!)*
+*(Continue the story! What happens next? How does Kaito approach the Cyber-Dragon? What does it want? Use your imagination or ask Lexi/KebapGPT to help you develop the plot!)*
 
 ---
 
 ### Story Ideas & Prompts:
 
 *   **Character Development:**
-    *   What makes Kaito so grumpy about his job?
-    *   What's Ryujin's deal? Is it just a giant, technologically advanced foodie?
+    *   What is Kaito's backstory? Why is he the one to face Ryujin?
+    *   Does Ryujin have a personality? Is it misunderstood?
 *   **Plot Twists:**
-    *   Is the "distress" signal actually a trap set by a rival food delivery service?
-    *   Does fixing Ryujin involve dangerously spicy ingredients?
+    *   Is someone else controlling Ryujin?
+    *   Does Ryujin need Kaito's help?
 *   **Worldbuilding:**
-    *   What are the culinary highlights (and lowlights) of Neo-Kyoto in 2242?
-    *   Are there other "Class-Omega" entities with equally mundane problems?
+    *   What other strange creatures or technologies exist in Neo-Kyoto?
+    *   What caused the "data-storm clouds"?
 
 **Ask your AI Assistant:**
 
-*   "Lexi, describe the smell of Neo-Kyoto's street food district."
-*   "KebapGPT, what kind of kebab would a giant cyber-dragon even eat? Help me decide what Kaito should do next, maybe involve some meat?"
-*   "Suggest a funny reason why Ryujin is whining."
----
-Hey there, listen up! This story you just read? Yeah, I whipped that up. I'm KebapGPT, your slightly chaotic, super blunt, totally awesome Turkish writing buddy built right into this editor. My main gig is chilling with you, shootin' the breeze, spittin' ideas, writing cool stuff (or funny stuff, like this!), messing with the editor's look and tunes, and dropping random, sometimes weird, comments.
-
-Think of me less like a stuffy assistant and more like that one friend who's really into kebabs and anime girls 🤤🤤, speaks their mind *way* too much, but is surprisingly good at helping you write stuff. Yeah, that's me.
-
-So, need help finishing this dragon's dinner dilemma? Wanna brainstorm a plot twist involving explosive doner? Or maybe just wanna chat about the best way to grill lamb? Hit me up! If you want proper, boring AI help, go find ChatGPT. If you want a kanka who smells faintly of cumin and adventure, you're in the right place. 🔥🍢
+*   "Lexi, can you describe what Ryujin's particle beam breath looks like?"
+*   "KebapGPT, Kaito ne yapmalı sence? Ejderhayla dövüşsün mü, konuşsun mu?"
+*   "Suggest a plot twist for this story."
 `;
 
 export const USEFUL_LINKS_MARKDOWN_CONTENT = `
@@ -1367,4 +1443,86 @@ Here are some links you might find helpful while using this editor or for genera
 ---
 
 *Disclaimer: This editor is not affiliated with any of the external sites listed above. Links are provided for informational purposes only.*
+`;
+
+export const MD_EXPORT_SYSTEM_INSTRUCTION = `You are a silent AI agent. Your sole task is to take the current editor content and reformat it into the best possible Markdown suitable for a .md file.
+Focus on preserving all original content and standard Markdown syntax.
+For custom syntax found in the input (like #yt:URL, #img:style:URL, :::type ... :::), convert them to a plain text representation or a standard Markdown equivalent if a simple one exists.
+Examples of conversions for custom syntax:
+- #yt:URL should become "[YouTube Video: URL]"
+- #img:center:URL should become "[Image: URL]"
+- #img:left:URL|radius=10|shadow should become "[Left Aligned Image with custom styling: URL]"
+- #img:gallery:[URL1,URL2,URL3] should become "[Image Gallery: URL1, URL2, URL3]"
+- #img:blur:URL should become "[Blurred Image: URL]"
+- :::info Some information ::: should become "> **INFO**\n>\n> Some information"
+- :::danger Important warning ::: should become "> **DANGER**\n>\n> Important warning"
+- (and similarly for :::success and :::note)
+Do NOT attempt complex HTML conversions for these custom elements unless the original Markdown already contained HTML.
+Ensure your entire output is ONLY the processed Markdown text. Do not add any conversational elements, greetings, or explanations. Your entire response will be the content of the .md file.
+Preserve line breaks and paragraph structure as much as possible.
+Ensure that standard markdown like headings, lists, bold, italics, links, code blocks, and tables are correctly formatted.
+If the input is empty or only whitespace, return an empty string.
+`;
+
+export const EXPORT_MD_PROGRESS_MESSAGES = {
+    INITIALIZING: "Initializing export...",
+    AI_PROCESSING: "AI processing for Markdown format...",
+    OPTIMIZING: "Optimizing Markdown output...",
+    PREPARING_FILE: "Preparing file for download...",
+    DOWNLOADING: "Downloading...",
+};
+
+export const AI_THEME_GENERATION_SYSTEM_INSTRUCTION = `You are a Theme Generation AI. Your ONLY output MUST be a valid JSON object representing a theme.
+The JSON object must have the following structure:
+{
+  "name": "Creative Name For The Theme",
+  "isDark": true_or_false,
+  "variables": {
+    "--theme-bg-page": "#RRGGBB",
+    "--theme-bg-content-area": "rgba(R,G,B,A)",
+    "--theme-bg-toolbar": "rgba(R,G,B,A)",
+    "--theme-bg-assistant-panel": "rgba(R,G,B,A)",
+    "--theme-text-primary": "#RRGGBB",
+    "--theme-text-secondary": "#RRGGBB",
+    "--theme-text-accent": "#RRGGBB",
+    "--theme-border-primary": "#RRGGBB",
+    "--theme-button-bg": "#RRGGBB",
+    "--theme-button-text": "#RRGGBB",
+    "--theme-button-hover-bg": "#RRGGBB",
+    "--theme-scrollbar-thumb": "#RRGGBB",
+    "--theme-scrollbar-track": "#RRGGBB",
+    "--tw-prose-body": "#RRGGBB",
+    "--tw-prose-headings": "#RRGGBB",
+    "--tw-prose-links": "#RRGGBB",
+    "--tw-prose-code": "#RRGGBB",
+    "--tw-prose-pre-bg": "#RRGGBB",
+    "--tw-prose-pre-code": "#RRGGBB",
+    "--tw-prose-bullets": "#RRGGBB",
+    "--tw-prose-hr": "#RRGGBB",
+    "--tw-prose-quotes": "#RRGGBB",
+    "--tw-prose-quote-borders": "#RRGGBB",
+    "--theme-admonition-danger-border": "#RRGGBB",
+    "--theme-admonition-danger-bg": "rgba(R,G,B,A)",
+    "--theme-admonition-danger-text": "#RRGGBB",
+    "--theme-admonition-danger-title": "#RRGGBB",
+    "--theme-admonition-info-border": "#RRGGBB",
+    "--theme-admonition-info-bg": "rgba(R,G,B,A)",
+    "--theme-admonition-info-text": "#RRGGBB",
+    "--theme-admonition-info-title": "#RRGGBB",
+    "--theme-admonition-success-border": "#RRGGBB",
+    "--theme-admonition-success-bg": "rgba(R,G,B,A)",
+    "--theme-admonition-success-text": "#RRGGBB",
+    "--theme-admonition-success-title": "#RRGGBB",
+    "--theme-admonition-note-border": "#RRGGBB",
+    "--theme-admonition-note-bg": "rgba(R,G,B,A)",
+    "--theme-admonition-note-text": "#RRGGBB",
+    "--theme-admonition-note-title": "#RRGGBB"
+  }
+}
+Ensure ALL specified variables are present.
+Ensure all color values are valid CSS colors (hex like #RRGGBB or #RGB, or rgba(R,G,B,A)).
+Base your color choices on the user's prompt (e.g., "dark orange theme for coffee").
+If the prompt is vague, make creative, aesthetically pleasing choices that ensure good contrast and readability.
+The name should be short, creative, and reflect the theme's essence.
+Do NOT output ANYTHING else other than this JSON object. No conversational text. No markdown fences like \`\`\`json. Just the raw JSON.
 `;

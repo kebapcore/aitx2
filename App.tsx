@@ -7,26 +7,32 @@ import Toolbar from './components/Toolbar';
 import SideAssistantPanel from './components/SideAssistantPanel';
 import Modal from './components/Modal';
 import SettingsModal from './components/SettingsModal';
+import ExportProgressModal from './components/ExportProgressModal'; 
 import LoadingSpinner from './components/LoadingSpinner';
 import IconButton from './components/IconButton'; 
 import ContextMenu from './components/ContextMenu';
 
 
 import { 
-    AiTextFile, EditorSettings, Theme, AiHistoryRecord, Message, 
+    EditorSettings, PredefinedTheme, ThemeId, AiHistoryRecord, Message, 
     LexiActionCommand, SettingsCommand, ParsedAssistantResponse,
     AssistantInteractionRecord, AudioAnalysisRecord, AppState, TabState,
     AssistantType, ThinkingPerformance, AudioAttachment, GroundingChunk,
-    MusicPlaylistItem, MusicPreviewItem, ContextMenuItemWithIcon
+    MusicPlaylistItem, MusicPreviewItem, ContextMenuItemWithIcon,
+    CustomThemeDefinition, FullAppStateForExport, AiTextFile
 } from './types';
 import { 
     APP_VERSION, DEFAULT_EDITOR_SETTINGS, THEME_DEFINITIONS, 
     LOCALSTORAGE_APP_STATE_KEY, LOCALSTORAGE_LAUNCHED_BEFORE_KEY,
     GET_STARTED_MARKDOWN_CONTENT, ANONMUSIC_API_URL, ANONMUSIC_BASE_PATH_URL,
     ABOUT_PAGE_MARKDOWN_CONTENT, AI_TOOLS_GUIDE_MARKDOWN_CONTENT,
-    A_SAMPLE_STORY_MARKDOWN_CONTENT, USEFUL_LINKS_MARKDOWN_CONTENT
+    A_SAMPLE_STORY_MARKDOWN_CONTENT, USEFUL_LINKS_MARKDOWN_CONTENT,
+    EXPORT_MD_PROGRESS_MESSAGES, PREDEFINED_BACKGROUND_IMAGES
 } from './constants';
-import { initializeAi, isAiInitialized, sendMessageToAssistantStream, sendAudioAndPromptToAssistantStream, resetAssistantChat } from './services/geminiService';
+import { 
+    initializeAi, isAiInitialized, sendMessageToAssistantStream, 
+    sendAudioAndPromptToAssistantStream, resetAssistantChat, getMarkdownExportContent 
+} from './services/geminiService';
 import { GenerateContentResponse } from '@google/genai'; 
 import useSpeechSynthesis from './hooks/useSpeechSynthesis';
 
@@ -109,7 +115,7 @@ const createNewTab = (
     type: 'text' = 'text'
 ): TabState => {
     let introText = `Welcome to your new tab${title !== "Untitled" ? `: "${title}"` : ""}! I'm Lexi. How can I help you here?`;
-    if (content) { // If content is pre-filled, change intro message
+    if (content) { 
       introText = `This tab "${title}" has been opened. I'm Lexi. How can I help you with this content?`;
     }
     if (activeAssistant === 'kebapgpt') {
@@ -128,19 +134,37 @@ const createNewTab = (
     };
 };
 
-// Context Menu Icons
+
 const IconWrapperSmall: React.FC<{children: React.ReactNode; className?: string}> = ({ children, className="w-4 h-4" }) => <div className={className}>{children}</div>;
-const PasteIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" /></svg></IconWrapperSmall>;
+const PasteIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25M6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" /></svg></IconWrapperSmall>;
 const SelectAllIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 3" d="M9 4.5h6.75a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 17.25V6.75A2.25 2.25 0 016.75 4.5H9z" /></svg></IconWrapperSmall>;
 const TogglePreviewIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></IconWrapperSmall>;
 const ExtendIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9m-9 7.5v4.5m0-4.5h4.5m-4.5 0L9 15m11.25 0v4.5m0-4.5h-4.5m4.5 0L15 15" /></svg></IconWrapperSmall>;
 const SummarizeIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M12 17.25h8.25" /></svg></IconWrapperSmall>;
 const MarkdownIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 00-2.25 2.25v6" /></svg></IconWrapperSmall>;
 const FeedbackIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8.25V4.5m0 3.75c-.621 0-1.125.504-1.125 1.125v3.75c0 .621.504 1.125 1.125 1.125h.008c.621 0 1.125-.504 1.125-1.125v-3.75c0-.621-.504-1.125-1.125-1.125H12zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></IconWrapperSmall>;
-const CopyIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125V7.5m0 4.125c0 .621.504 1.125 1.125 1.125h5.25c.621 0 1.125-.504 1.125-1.125V7.5m-6.375 1.5H6.75" /></svg></IconWrapperSmall>;
+const CopyIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504 1.125 1.125 1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125V7.5m0 4.125c0 .621.504 1.125 1.125 1.125h5.25c.621 0 1.125-.504 1.125-1.125V7.5m-6.375 1.5H6.75" /></svg></IconWrapperSmall>;
 const CutIcon = () => <IconWrapperSmall><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M7.848 8.25l1.536.887M7.848 8.25a3 3 0 11-5.196-3 3 3 0 015.196 3zm1.536.887a2.167 2.167 0 01-2.434 2.434m0 0a2.167 2.167 0 01-2.434-2.434m2.434 2.434L9 12m6-3.75l-1.536.887M16.152 8.25a3 3 0 11-5.196-3 3 3 0 015.196 3zm-1.536.887a2.167 2.167 0 01-2.434 2.434m0 0a2.167 2.167 0 01-2.434-2.434m2.434 2.434L15 12M9 12l6 3.75m-6-3.75L3 15.75M9 12l6-3.75m-6 3.75L3 8.25" /></svg></IconWrapperSmall>;
 const EyeIcon = () => <div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></div>;
 const EyeSlashIcon = () => <div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.574M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg></div>;
+
+const getRandomThemeAndBackground = (): { theme: PredefinedTheme, backgroundImageUrl: string } => {
+    const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const availablePredefinedThemes = Object.keys(THEME_DEFINITIONS) as PredefinedTheme[];
+    
+    let suitableThemes = availablePredefinedThemes.filter(
+        (themeKey) => THEME_DEFINITIONS[themeKey].isDark === systemPrefersDark
+    );
+    if (suitableThemes.length === 0) { 
+        suitableThemes = availablePredefinedThemes;
+    }
+    const randomTheme = suitableThemes[Math.floor(Math.random() * suitableThemes.length)] || DEFAULT_EDITOR_SETTINGS.theme as PredefinedTheme;
+
+    const randomBgIndex = Math.floor(Math.random() * PREDEFINED_BACKGROUND_IMAGES.length);
+    const randomBackgroundUrl = PREDEFINED_BACKGROUND_IMAGES[randomBgIndex]?.url || DEFAULT_EDITOR_SETTINGS.backgroundImageUrl;
+    
+    return { theme: randomTheme, backgroundImageUrl: randomBackgroundUrl };
+};
 
 
 const App: React.FC = () => {
@@ -165,6 +189,10 @@ const App: React.FC = () => {
     y: number;
     items: ContextMenuItemWithIcon[];
   } | null>(null);
+
+  const [isExportingMd, setIsExportingMd] = useState<boolean>(false);
+  const [exportMdProgress, setExportMdProgress] = useState<number>(0);
+  const [exportMdMessage, setExportMdMessage] = useState<string>('');
 
 
   useEffect(() => {
@@ -281,25 +309,40 @@ const App: React.FC = () => {
       handleAddNewTab
     ]);
 
+  const mergeSettings = (loadedSettings: Partial<EditorSettings>, defaultSettings: EditorSettings): EditorSettings => {
+    const validThinkingPerformances: ThinkingPerformance[] = ['default', 'fastest', 'advanced'];
+    const merged: EditorSettings = {
+        ...defaultSettings,
+        ...loadedSettings,
+        theme: (loadedSettings.theme && (THEME_DEFINITIONS[loadedSettings.theme as PredefinedTheme] || (loadedSettings.customThemes || []).find(ct => ct.id === loadedSettings.theme))) 
+               ? loadedSettings.theme 
+               : defaultSettings.theme,
+        activeAssistant: (loadedSettings.activeAssistant && ['lexi', 'kebapgpt'].includes(loadedSettings.activeAssistant)) 
+                         ? loadedSettings.activeAssistant 
+                         : defaultSettings.activeAssistant,
+        thinkingPerformance: (loadedSettings.thinkingPerformance && validThinkingPerformances.includes(loadedSettings.thinkingPerformance))
+                             ? loadedSettings.thinkingPerformance
+                             : defaultSettings.thinkingPerformance,
+        customModelName: loadedSettings.customModelName || '',
+        customSystemInstruction: loadedSettings.customSystemInstruction || '',
+        customThemes: loadedSettings.customThemes || [],
+        isAssistantPanelVisible: loadedSettings.isAssistantPanelVisible ?? defaultSettings.isAssistantPanelVisible,
+        assistantVoiceEnabled: loadedSettings.assistantVoiceEnabled ?? defaultSettings.assistantVoiceEnabled,
+    };
+    return merged;
+  };
+
 
   const loadStateFromLocalStorage = () => {
     const storedAppState = localStorage.getItem(LOCALSTORAGE_APP_STATE_KEY);
     if (storedAppState) {
       try {
         const parsedState = JSON.parse(storedAppState) as AppState;
-        if (parsedState.tabs && parsedState.editorSettings) {
-          setAppState({
-            ...parsedState,
-            editorSettings: { 
-              ...DEFAULT_EDITOR_SETTINGS, 
-              ...parsedState.editorSettings,
-              theme: THEME_DEFINITIONS[parsedState.editorSettings.theme] ? parsedState.editorSettings.theme : DEFAULT_EDITOR_SETTINGS.theme,
-              activeAssistant: ['lexi', 'kebapgpt'].includes(parsedState.editorSettings.activeAssistant) ? parsedState.editorSettings.activeAssistant : DEFAULT_EDITOR_SETTINGS.activeAssistant,
-              thinkingPerformance: ['default', 'fastest'].includes(parsedState.editorSettings.thinkingPerformance) ? parsedState.editorSettings.thinkingPerformance : DEFAULT_EDITOR_SETTINGS.thinkingPerformance,
-              customModelName: parsedState.editorSettings.customModelName || '',
-              customSystemInstruction: parsedState.editorSettings.customSystemInstruction || '',
-             }
-          });
+         if (parsedState.tabs && parsedState.editorSettings) {
+            setAppState({
+                ...parsedState,
+                editorSettings: mergeSettings(parsedState.editorSettings, DEFAULT_EDITOR_SETTINGS)
+            });
         } else loadDefaultState();
       } catch (e) {
         console.error("Failed to parse stored app state, resetting:", e);
@@ -309,18 +352,42 @@ const App: React.FC = () => {
     } else loadDefaultState();
   };
   
-  const loadDefaultState = () => {
+ const loadDefaultState = (triggeredByRefresh = false) => {
     const launchedBefore = localStorage.getItem(LOCALSTORAGE_LAUNCHED_BEFORE_KEY);
-    const defaultAssistant = DEFAULT_EDITOR_SETTINGS.activeAssistant;
-    const getStartedTab = createNewTab(defaultAssistant, "Get Started", GET_STARTED_MARKDOWN_CONTENT);
-    if (!launchedBefore) {
-      localStorage.setItem(LOCALSTORAGE_LAUNCHED_BEFORE_KEY, 'true');
+    let initialSettings = { ...DEFAULT_EDITOR_SETTINGS };
+
+    if (!launchedBefore || triggeredByRefresh) {
+        const {theme: randomTheme, backgroundImageUrl: randomBackgroundUrl} = getRandomThemeAndBackground();
+        initialSettings.theme = randomTheme;
+        initialSettings.backgroundImageUrl = randomBackgroundUrl;
+        initialSettings.isMusicPlaying = false;
+        if (!launchedBefore) localStorage.setItem(LOCALSTORAGE_LAUNCHED_BEFORE_KEY, 'true');
     }
+
+    const defaultAssistant = initialSettings.activeAssistant;
+    const getStartedTab = createNewTab(defaultAssistant, "Get Started", GET_STARTED_MARKDOWN_CONTENT);
+    
     setAppState({
-      tabs: [getStartedTab], activeTabId: getStartedTab.id,
-      editorSettings: DEFAULT_EDITOR_SETTINGS,
+        tabs: [getStartedTab],
+        activeTabId: getStartedTab.id,
+        editorSettings: initialSettings,
     });
-  };
+};
+
+  const handleRefreshThemeAndBackground = () => {
+    setAppState(prev => {
+        if (!prev) return null;
+        const {theme: randomTheme, backgroundImageUrl: randomBackgroundUrl} = getRandomThemeAndBackground();
+        return {
+            ...prev,
+            editorSettings: {
+                ...prev.editorSettings,
+                theme: randomTheme,
+                backgroundImageUrl: randomBackgroundUrl,
+            }
+        }
+    });
+  }
 
   useEffect(() => {
     if (appState && !isLoadingState) {
@@ -331,17 +398,33 @@ const App: React.FC = () => {
   useEffect(() => {
     if (appState?.editorSettings) {
       const settings = appState.editorSettings;
-      const themeDef = THEME_DEFINITIONS[settings.theme] || THEME_DEFINITIONS.dark;
+      let themeDefToApply: CustomThemeDefinition | { name: string, isDark: boolean, variables: Record<string, string> } | undefined;
+
+      if (THEME_DEFINITIONS[settings.theme as PredefinedTheme]) {
+        themeDefToApply = THEME_DEFINITIONS[settings.theme as PredefinedTheme];
+      } else {
+        themeDefToApply = (settings.customThemes || []).find(ct => ct.id === settings.theme);
+      }
+      
+      if (!themeDefToApply) { // Fallback if theme ID is invalid
+        console.warn(`Theme with ID "${settings.theme}" not found, falling back to default.`);
+        themeDefToApply = THEME_DEFINITIONS[DEFAULT_EDITOR_SETTINGS.theme as PredefinedTheme];
+        // Optionally update appState to reflect this fallback
+        // setAppState(prev => prev ? {...prev, editorSettings: {...prev.editorSettings, theme: DEFAULT_EDITOR_SETTINGS.theme}} : null);
+      }
+      
       Object.keys(THEME_DEFINITIONS).forEach(k => document.documentElement.classList.remove(`theme-${k}`));
+      (settings.customThemes || []).forEach(ct => document.documentElement.classList.remove(`theme-${ct.id}`));
+
       document.documentElement.classList.add(`theme-${settings.theme}`);
-      document.documentElement.classList.toggle('dark', themeDef.isDark);
+      document.documentElement.classList.toggle('dark', themeDefToApply.isDark);
       
       const styleEl = document.getElementById('dynamic-theme-styles');
       if (styleEl) {
         let css = `:root.theme-${settings.theme} {\n`;
-        for (const [v, val] of Object.entries(themeDef.variables)) css += `  ${v}: ${val};\n`;
+        for (const [v, val] of Object.entries(themeDefToApply.variables)) css += `  ${v}: ${val};\n`;
         css += `}\n`;
-        if (themeDef.variables['--theme-scrollbar-thumb'] && themeDef.variables['--theme-scrollbar-track']) {
+        if (themeDefToApply.variables['--theme-scrollbar-thumb'] && themeDefToApply.variables['--theme-scrollbar-track']) {
             css += `.theme-${settings.theme} ::-webkit-scrollbar { width: 8px; height: 8px; }
                     .theme-${settings.theme} ::-webkit-scrollbar-track { background: var(--theme-scrollbar-track); border-radius: 4px; }
                     .theme-${settings.theme} ::-webkit-scrollbar-thumb { background: var(--theme-scrollbar-thumb); border-radius: 4px; }
@@ -375,7 +458,8 @@ const App: React.FC = () => {
         if (prev.editorSettings.activeAssistant !== newSettings.activeAssistant ||
             prev.editorSettings.thinkingPerformance !== newSettings.thinkingPerformance ||
             prev.editorSettings.customModelName !== newSettings.customModelName ||
-            prev.editorSettings.customSystemInstruction !== newSettings.customSystemInstruction
+            prev.editorSettings.customSystemInstruction !== newSettings.customSystemInstruction ||
+            prev.editorSettings.theme !== newSettings.theme // Reset chat if theme changed, as custom themes might have different IDs.
             ) {
             resetAssistantChat();
         }
@@ -424,9 +508,24 @@ const App: React.FC = () => {
     let musicApiContext = "";
     try {
         const res = await fetch(ANONMUSIC_API_URL);
-        if (res.ok) musicApiContext = `\n\nAvailable Music (use for requests, prefix 'audioPath' with "${ANONMUSIC_BASE_PATH_URL}"):\n---\n${JSON.stringify(await res.json())}\n---\n`;
-        else musicApiContext = `\n\n(Could not fetch music list: ${res.statusText})\n`;
-    } catch (e) { musicApiContext = `\n\n(Error fetching music: ${e instanceof Error ? e.message : String(e)})\n`; }
+        if (res.ok) {
+            const contentType = res.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+                const jsonData = await res.json();
+                musicApiContext = `\n\nAvailable Music (use for requests, prefix 'audioPath' with "${ANONMUSIC_BASE_PATH_URL}"):\n---\n${JSON.stringify(jsonData)}\n---\n`;
+            } else {
+                musicApiContext = `\n\n(Could not fetch music list: Expected JSON but received ${contentType || 'unknown content type'}. Status: ${res.status})\n`;
+            }
+        } else {
+            musicApiContext = `\n\n(Could not fetch music list: Server responded with status ${res.status} - ${res.statusText})\n`;
+        }
+    } catch (e) {
+        let errorDetail = e instanceof Error ? e.message : String(e);
+        if (e instanceof SyntaxError) { 
+            errorDetail = "Failed to parse music data as JSON. " + errorDetail;
+        }
+        musicApiContext = `\n\n(Error fetching music: ${errorDetail})\n`;
+    }
 
     const fullPrompt = `User's text:\n---\n${activeTab.textContent.trim()||"(empty)"}\n---\n${musicApiContext}\nUser's message: "${userMessageText}"`;
     let fullResponseText = ""; let accumulatedGroundingChunks: GroundingChunk[] = [];
@@ -451,7 +550,10 @@ const App: React.FC = () => {
                     if (!prev) return null;
                     let newSettings = { ...prev.editorSettings }; let criticalChange = false;
                     parsed.settingsCommands.forEach(cmd => {
-                        if (cmd.type === 'theme' && THEME_DEFINITIONS[cmd.payload as Theme]) { if (newSettings.theme !== cmd.payload as Theme) {newSettings.theme = cmd.payload as Theme; criticalChange=true;} }
+                        const themePayloadId = cmd.payload as ThemeId;
+                        if (cmd.type === 'theme' && (THEME_DEFINITIONS[themePayloadId as PredefinedTheme] || (newSettings.customThemes || []).find(ct => ct.id === themePayloadId)) ) { 
+                            if (newSettings.theme !== themePayloadId) {newSettings.theme = themePayloadId; criticalChange=true;} 
+                        }
                         else if (cmd.type === 'music') { if (newSettings.backgroundMusicUrl !== cmd.payload.trim()) newSettings.backgroundMusicUrl = cmd.payload.trim(); newSettings.isMusicPlaying = !!cmd.payload.trim(); }
                         else if (cmd.type === 'bg') { if (newSettings.backgroundImageUrl !== cmd.payload) newSettings.backgroundImageUrl = cmd.payload; }
                     });
@@ -503,13 +605,8 @@ const App: React.FC = () => {
           if (parsed.version && parsed.activeTabContent !== undefined && parsed.editorSettings) {
             setAppState(prev => {
                 if (!prev || !prev.activeTabId) return prev;
-                const loadedSettings = { ...DEFAULT_EDITOR_SETTINGS, ...prev.editorSettings, ...parsed.editorSettings,
-                    theme: THEME_DEFINITIONS[parsed.editorSettings.theme] ? parsed.editorSettings.theme : DEFAULT_EDITOR_SETTINGS.theme,
-                    activeAssistant: (['lexi', 'kebapgpt'].includes(parsed.editorSettings.activeAssistant) ? parsed.editorSettings.activeAssistant : DEFAULT_EDITOR_SETTINGS.activeAssistant) as AssistantType,
-                    thinkingPerformance: (['default', 'fastest'].includes(parsed.editorSettings.thinkingPerformance) ? parsed.editorSettings.thinkingPerformance : DEFAULT_EDITOR_SETTINGS.thinkingPerformance) as ThinkingPerformance,
-                    customModelName: parsed.editorSettings.customModelName || '',
-                    customSystemInstruction: parsed.editorSettings.customSystemInstruction || '',
-                };
+                const loadedSettings = mergeSettings(parsed.editorSettings, DEFAULT_EDITOR_SETTINGS);
+                
                 let loadedMsgs = (parsed.activeTabAssistantMessages && parsed.activeTabAssistantMessages.length > 0) ? parsed.activeTabAssistantMessages : [];
                 if (loadedMsgs.length === 0) {
                     let intro = `File loaded. I'm ${loadedSettings.activeAssistant === 'lexi' ? 'Lexi' : 'KebapGPT'}. Ready?`;
@@ -594,12 +691,118 @@ const App: React.FC = () => {
 
     setEditorContextMenu({ visible: true, x: event.clientX, y: event.clientY, items });
   };
+
+  const handleExportToMd = async () => {
+    if (!appState || !activeTab || !isApiKeySet) {
+        setErrorMessage("Cannot export: API key, application state, or active tab missing.");
+        return;
+    }
+    setIsExportingMd(true);
+    try {
+        setExportMdMessage(EXPORT_MD_PROGRESS_MESSAGES.INITIALIZING); setExportMdProgress(0);
+        
+        await new Promise(resolve => setTimeout(resolve, 300)); 
+        setExportMdMessage(EXPORT_MD_PROGRESS_MESSAGES.AI_PROCESSING); setExportMdProgress(10);
+
+        const markdownContent = await getMarkdownExportContent(activeTab.textContent);
+        
+        setExportMdMessage(EXPORT_MD_PROGRESS_MESSAGES.OPTIMIZING); setExportMdProgress(70);
+        await new Promise(resolve => setTimeout(resolve, 300)); 
+
+        setExportMdMessage(EXPORT_MD_PROGRESS_MESSAGES.PREPARING_FILE); setExportMdProgress(90);
+        const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${activeTab.title.replace(/\s+/g, '_') || 'document'}.md`;
+        
+        await new Promise(resolve => setTimeout(resolve, 300));
+        setExportMdMessage(EXPORT_MD_PROGRESS_MESSAGES.DOWNLOADING); setExportMdProgress(100);
+
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        await new Promise(resolve => setTimeout(resolve, 500)); 
+
+    } catch (error) {
+        console.error("Error exporting to Markdown:", error);
+        setErrorMessage(`Markdown export failed: ${error instanceof Error ? error.message : String(error)}`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); 
+    } finally {
+        setIsExportingMd(false);
+        setExportMdProgress(0);
+        setExportMdMessage('');
+    }
+  };
   
+  const handleExportAllSettings = () => {
+    if (!appState) {
+        setErrorMessage("Uygulama durumu dışa aktarmak için yüklenemedi.");
+        return;
+    }
+    // Use FullAppStateForExport type which includes all necessary top-level fields
+    const exportData: AppState = { ...appState }; 
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ai-text-editor-all-settings-${Date.now()}.settings`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setErrorMessage("Tüm ayarlar başarıyla dışa aktarıldı.");
+    setTimeout(() => setErrorMessage(null), 3000);
+  };
+
+  const handleImportAllSettings = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+        if (!window.confirm("UYARI: Tüm ayarları içe aktarmak, mevcut tüm sekmelerinizi, içeriklerinizi ve ayarlarınızı GÜNCEL dosyadakilerle değiştirecektir. Bu işlem geri alınamaz. Devam etmek istediğinizden emin misiniz?")) {
+            if (event.target) event.target.value = ''; // Reset file input
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const fileContent = e.target?.result as string;
+                const parsedState = JSON.parse(fileContent) as AppState; // Use AppState for direct import
+
+                // Basic validation: check for essential top-level keys
+                if (parsedState.tabs && parsedState.editorSettings && parsedState.activeTabId !== undefined) {
+                    localStorage.setItem(LOCALSTORAGE_APP_STATE_KEY, fileContent);
+                    localStorage.setItem(LOCALSTORAGE_LAUNCHED_BEFORE_KEY, 'true'); // Ensure it doesn't trigger first launch logic
+                    window.location.reload(); // Easiest way to apply all settings cleanly
+                } else {
+                    setErrorMessage("Geçersiz .settings dosyası. Gerekli yapı eksik.");
+                }
+            } catch (err) {
+                setErrorMessage(`Ayarlar içe aktarılırken hata oluştu: ${err instanceof Error ? err.message : String(err)}`);
+            }
+        };
+        reader.readAsText(file);
+        if (event.target) event.target.value = ''; // Reset file input
+    }
+  };
+
+
   if (isLoadingState || !appState || !activeTab) {
     return <div className="flex items-center justify-center h-screen" style={{backgroundColor: 'var(--theme-bg-page, #111827)'}}><LoadingSpinner size="w-16 h-16" color="text-sky-500" /></div>;
   }
   
-  const currentThemeDef = THEME_DEFINITIONS[appState.editorSettings.theme] || THEME_DEFINITIONS.dark;
+  let currentThemeDef: CustomThemeDefinition | { name: string, isDark: boolean, variables: Record<string, string> } | undefined;
+  if (THEME_DEFINITIONS[appState.editorSettings.theme as PredefinedTheme]) {
+    currentThemeDef = THEME_DEFINITIONS[appState.editorSettings.theme as PredefinedTheme];
+  } else {
+    currentThemeDef = (appState.editorSettings.customThemes || []).find(ct => ct.id === appState.editorSettings.theme);
+  }
+  if (!currentThemeDef) {
+    currentThemeDef = THEME_DEFINITIONS[DEFAULT_EDITOR_SETTINGS.theme as PredefinedTheme];
+  }
+  
   const activeAssistantType = appState.editorSettings.activeAssistant;
   const assistantName = activeAssistantType === 'kebapgpt' ? 'KebapGPT' : 'Lexi Assistant';
   const chatPlaceholder = activeAssistantType === 'kebapgpt' ? 'KebapGPT\'ye yaz...' : 'Chat with Lexi...';
@@ -613,7 +816,7 @@ const App: React.FC = () => {
         <Toolbar
             tabs={appState.tabs} activeTabId={appState.activeTabId} onActivateTab={handleActivateTab}
             onCloseTab={handleCloseTab} onRenameTab={handleRenameTab} onNewTab={handleAddNewTab}
-            onSaveFile={handleSaveFile} onLoadFile={handleLoadFile}
+            onSaveFile={handleSaveFile} onLoadFile={handleLoadFile} onExportToMd={handleExportToMd}
             isAssistantVoiceEnabled={appState.editorSettings.assistantVoiceEnabled} onToggleAssistantVoice={handleToggleAssistantVoice}
             onClearText={handleClearText} isApiKeySet={isApiKeySet} onSetDevApiKey={() => setIsApiKeyModalOpen(true)}
             onTogglePreview={handleTogglePreview} isPreviewActive={isMarkdownPreviewActive}
@@ -638,7 +841,7 @@ const App: React.FC = () => {
        )}
 
       <main className={`flex-grow flex items-center justify-center overflow-hidden relative transition-all duration-300 ease-in-out ${isFullScreenMode ? 'p-0' : 'p-4 md:p-6 lg:p-8'}`} style={{ color: 'var(--theme-text-primary)'}}>
-        <div className={`flex w-full h-full ${isFullScreenMode ? '' : 'max-w-7xl'}`}>
+        <div className={`flex w-full h-full ${isFullScreenMode ? '' : 'max-w-screen-2xl'}`}> {/* Max width adjusted */}
             <div className={mainContentAreaClasses} style={{backgroundColor: 'var(--theme-bg-content-area)' }}>
                 {isMarkdownPreviewActive 
                     ? <MarkdownPreview markdownText={activeTab.textContent} /> 
@@ -695,7 +898,20 @@ const App: React.FC = () => {
         </div>
       </Modal>
 
-      <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currentSettings={appState.editorSettings} onSettingsChange={handleSettingsChange} />
+      <SettingsModal 
+        isOpen={isSettingsModalOpen} 
+        onClose={() => setIsSettingsModalOpen(false)} 
+        currentSettings={appState.editorSettings} 
+        onSettingsChange={handleSettingsChange}
+        onExportAllSettings={handleExportAllSettings}
+        onImportAllSettings={handleImportAllSettings}
+        onRefreshThemeAndBackground={handleRefreshThemeAndBackground}
+      />
+      <ExportProgressModal 
+        isOpen={isExportingMd} 
+        progress={exportMdProgress} 
+        currentStepMessage={exportMdMessage}
+      />
     </div>
   );
 };

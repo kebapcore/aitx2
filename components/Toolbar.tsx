@@ -10,6 +10,7 @@ import ContextMenu from './ContextMenu';
 interface ToolbarProps {
   onSaveFile: () => void;
   onLoadFile: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onExportToMd: () => void; // New prop for .md export
   isAssistantVoiceEnabled: boolean;
   onToggleAssistantVoice: () => void;
   onClearText: () => void;
@@ -53,6 +54,8 @@ const ShowPanelIcon = () => <IconWrapper><svg xmlns="http://www.w3.org/2000/svg"
 const VoiceOnIcon = () => <IconWrapper><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg></IconWrapper>;
 const VoiceOffIcon = () => <IconWrapper><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0L21.75 9.75M19.5 12l-2.25 2.25M17.25 9.75L19.5 12m0 0L21.75 9.75M19.5 12l2.25-2.25M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg></IconWrapper>;
 const AssistantSwitchIcon = () => <IconWrapper><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-3.741-5.855M12 6A3.75 3.75 0 1015.75 9.75 3.75 3.75 0 0012 6zm-2.25 7.5a9.086 9.086 0 00-3.741.479 3 3 0 004.682 2.72M6.06 18.719a5.971 5.971 0 003.741 5.855" /></svg></IconWrapper>;
+const MdExportIcon = () => <IconWrapper><svg fill="currentColor" viewBox="0 0 16 16" className="w-5 h-5"><path d="M10.44.958c-.255-.255-.678-.255-.933 0L7.97 2.494l2.566 2.566 1.432-1.432c.255-.255.255-.678 0-.933L10.44.958zM3.687 4.313L6.253 6.88 2.688 10.444c-.255.255-.678.255-.933 0l-1.44-1.439c-.255-.255-.255-.678 0-.933L3.687 4.313zM2.56 12.44L.27 10.149l-.001.002L0 10.499v4C0 15.328.672 16 1.5 16h13c.828 0 1.5-.672 1.5-1.5v-4l-.271-.35c0-.001-.001-.001 0-.002L13.44 12.44l-2.565-2.565-2.566 2.565-2.566-2.565L2.56 12.441zM12.03 2.494L9.465 5.06 13.313 1.21c.255-.255.255-.678 0-.933L11.97.958a.66.66 0 00-.932 0l-1.432 1.432L12.03 2.494z"/></svg></IconWrapper>;
+
 
 // Other Icons
 const SettingsIcon = () => <IconWrapper><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.646.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 1.985c-.007.379.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.333.183-.582.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.759 6.759 0 010-1.985c.007-.379-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></IconWrapper>;
@@ -62,7 +65,7 @@ const AddIcon = () => <IconWrapper className="w-4 h-4"><svg xmlns="http://www.w3
 
 
 const Toolbar: React.FC<ToolbarProps> = ({
-  onSaveFile, onLoadFile, isAssistantVoiceEnabled, onToggleAssistantVoice,
+  onSaveFile, onLoadFile, onExportToMd, isAssistantVoiceEnabled, onToggleAssistantVoice,
   onClearText, isApiKeySet, onSetDevApiKey, onTogglePreview, isPreviewActive,
   onOpenSettings, isMusicPlaying, onToggleMusic, hasMusicUrl,
   tabs, activeTabId, onActivateTab, onCloseTab, onRenameTab, onNewTab,
@@ -76,6 +79,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   const fileDrawerItems = [
     { label: 'Save Tab (.aitxt)', action: onSaveFile, icon: <SaveIcon /> },
     { label: 'Load into Tab (.aitxt)', action: handleLoadClick, icon: <LoadIcon /> },
+    { label: 'Export to .md', action: onExportToMd, icon: <MdExportIcon /> },
     { label: 'Clear Tab Text', action: onClearText, icon: <TrashIcon /> },
   ];
 

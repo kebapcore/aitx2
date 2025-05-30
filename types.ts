@@ -1,6 +1,7 @@
 
+
 // New Theme string literal union type
-export type Theme = 
+export type PredefinedTheme = 
   | 'light'
   | 'dark'
   | 'amoled-black'
@@ -22,19 +23,28 @@ export type Theme =
   | 'arctic-blue'
   | 'golden-hour';
 
+export type ThemeId = PredefinedTheme | string; // string for custom theme IDs
+
+export interface CustomThemeDefinition {
+  id: string; // UUID
+  name: string;
+  isDark: boolean;
+  variables: Record<string, string>; // Same structure as THEME_DEFINITIONS.variables
+}
+
 export type AssistantType = 'lexi' | 'kebapgpt';
 
-export type ThinkingPerformance = 'default' | 'fastest';
+export type ThinkingPerformance = 'default' | 'fastest' | 'advanced';
 
 export interface CustomAiProfile {
-  id: string;
+  id:string;
   name: string;
   modelName: string;
   systemInstruction: string;
 }
 
 export interface EditorSettings {
-  theme: Theme; 
+  theme: ThemeId; 
   backgroundImageUrl: string;
   assistantVoiceEnabled: boolean;
   backgroundMusicUrl?: string;
@@ -42,10 +52,9 @@ export interface EditorSettings {
   isAssistantPanelVisible?: boolean;
   activeAssistant: AssistantType;
   thinkingPerformance: ThinkingPerformance;
-  customModelName?: string; // For Developer Settings
-  customSystemInstruction?: string; // For Developer Settings
-  // customAiProfiles?: CustomAiProfile[]; // Future: For storing multiple AI personalities
-  // activeCustomAiProfileId?: string; // Future
+  customModelName?: string; 
+  customSystemInstruction?: string;
+  customThemes?: CustomThemeDefinition[]; // For user-generated themes
 }
 
 export interface TextPromptRecord {
@@ -82,8 +91,8 @@ export interface AssistantInteractionRecord {
   settingsApplied?: SettingsCommand[];
   timestamp: number;
   assistant: AssistantType;
-  audioFileName?: string; // If audio was part of the prompt
-  groundingChunks?: GroundingChunk[]; // If search grounding was used
+  audioFileName?: string; 
+  groundingChunks?: GroundingChunk[];
 }
 
 export interface AiFeedbackRequestRecord {
@@ -105,6 +114,14 @@ export interface AiTextFile {
   editorSettings: EditorSettings;
   notes?: string;
 }
+
+// Used for app state export/import
+export interface FullAppStateForExport extends AiTextFile {
+    tabs: TabState[];
+    activeTabId: string | null;
+    // editorSettings is already in AiTextFile
+}
+
 
 export interface LexiActionCommand {
   type: 'regenerate' | 'append'; 
@@ -132,7 +149,7 @@ export interface GroundingChunk {
 export interface AudioAttachment {
   file: File;
   name: string;
-  type: string; // MIME type
+  type: string; 
   base64Data?: string; 
 }
 
@@ -199,7 +216,6 @@ export interface AnonMusicTrack {
   plays: number;
 }
 
-// Shared type for context menu items, usable by Toolbar's New Tab menu and editor's context menu
 export type ContextMenuItemWithIcon =
   | { isSeparator: true; label?: undefined; action?: undefined; icon?: undefined; disabled?: undefined; }
   | { isSeparator?: false; label: string; action: () => void; icon?: React.ReactNode; disabled?: boolean; };
