@@ -981,8 +981,8 @@ export const AUDIO_MIME_TYPES_SUPPORTED = [
     "audio/m4a",  
 ];
 
-export const ANONMUSIC_API_URL = "https://anonmusic.glitch.me/api/s/all";
-export const ANONMUSIC_BASE_PATH_URL = "https://anonmusic.glitch.me/";
+export const ANONMUSIC_API_URL = "https://7a3b30a9-1391-4107-908c-80fcd22aa1b7-00-3fannhdft2h7c.pike.replit.dev/api/s/all/";
+export const ANONMUSIC_BASE_PATH_URL = "https://7a3b30a9-1391-4107-908c-80fcd22aa1b7-00-3fannhdft2h7c.pike.replit.dev";
 
 
 export const ASSISTANT_SYSTEM_INSTRUCTION = `You are "Lexi," a friendly, witty, and highly creative writing assistant integrated into a text editor.
