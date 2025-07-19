@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import { parseAdvancedImageSyntax } from '../utils/imageParser';
 
 interface MarkdownPreviewProps {
   markdownText: string;
@@ -16,6 +17,11 @@ marked.setOptions({
 
 const preprocessCustomMarkdown = (text: string): string => {
   let processedText = text;
+
+  // Process advanced image syntax: image:link:alt:alignment:size:caption
+  processedText = processedText.replace(/^image:([^:\n]+)(?::([^:\n]*))?(?::([^:\n]*))?(?::([^:\n]*))?(?::([^:\n]*))?$/gm, (match, link, alt, alignment, size, caption) => {
+    return parseAdvancedImageSyntax(link, alt, alignment, size, caption);
+  });
 
   const getYouTubeVideoId = (url: string): string | null => {
     const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/;
@@ -206,6 +212,37 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ markdownText }) => {
         }
         .custom-md-img-blur:hover {
           filter: blur(0);
+        }
+
+        .custom-md-img-figure {
+          margin: 1em 0;
+        }
+        .custom-md-img-figure.custom-md-img-left {
+          float: left;
+          margin-right: 1em;
+          margin-bottom: 0.5em;
+        }
+        .custom-md-img-figure.custom-md-img-right {
+          float: right;
+          margin-left: 1em;
+          margin-bottom: 0.5em;
+        }
+        .custom-md-img-figure.custom-md-img-center {
+          margin: 1em auto;
+          display: block;
+          text-align: center;
+        }
+        .custom-md-img-caption {
+          font-size: 0.875rem;
+          color: var(--theme-text-secondary, #6b7280);
+          font-style: italic;
+          margin-top: 0.5rem;
+          text-align: center;
+        }
+        .custom-md-img-right {
+          float: right;
+          margin-left: 1em;
+          margin-bottom: 0.5em;
         }
 
         .custom-md-admonition {
