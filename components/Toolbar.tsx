@@ -21,6 +21,8 @@ interface ToolbarProps {
   onSetDevApiKey: () => void;
   onTogglePreview: () => void;
   isPreviewActive: boolean;
+  onToggleSplitPreview?: () => void;
+  isSplitPreview?: boolean;
   onOpenSettings: () => void;
   isMusicPlaying?: boolean;
   onToggleMusic?: () => void;
@@ -94,6 +96,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
   const viewDrawerItems = [
     { label: isPreviewActive ? 'Show Editor' : 'Show Markdown Preview', action: onTogglePreview, icon: isPreviewActive ? <EyeSlashIcon /> : <EyeIcon /> },
+    { label: isSplitPreview ? 'Disable Split View' : 'Enable Split View', action: onToggleSplitPreview || (() => {}), icon: <EyeIcon /> },
     { label: isAssistantPanelVisible ? 'Hide Assistant Panel' : 'Show Assistant Panel', action: onToggleAssistantPanel, icon: isAssistantPanelVisible ? <HidePanelIcon /> : <ShowPanelIcon /> },
   ];
 

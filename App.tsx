@@ -179,6 +179,7 @@ const App: React.FC = () => {
   const [isAssistantTyping, setIsAssistantTyping] = useState<boolean>(false);
   const { speak, cancel: cancelSpeech, isSupported: ttsSupported } = useSpeechSynthesis();
   const [isMarkdownPreviewActive, setIsMarkdownPreviewActive] = useState<boolean>(false);
+  const [isSplitPreviewActive, setIsSplitPreviewActive] = useState<boolean>(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const textEditorRef = useRef<HTMLTextAreaElement>(null); 
   const [isFullScreenMode, setIsFullScreenMode] = useState<boolean>(false);
@@ -218,6 +219,7 @@ const App: React.FC = () => {
 
 
   const handleTogglePreview = useCallback(() => setIsMarkdownPreviewActive(prev => !prev), []);
+  const handleToggleSplitPreview = useCallback(() => setIsSplitPreviewActive(prev => !prev), []);
   const handleToggleAssistant = useCallback(() => setAppState(prev => prev ? { ...prev, editorSettings: { ...prev.editorSettings, activeAssistant: prev.editorSettings.activeAssistant === 'lexi' ? 'kebapgpt' : 'lexi' }, ...(() => { resetAssistantChat(); return {}; })() } : null), []);
   const handleToggleAssistantPanelVisibility = useCallback(() => setAppState(prev => prev ? { ...prev, editorSettings: { ...prev.editorSettings, isAssistantPanelVisible: !(prev.editorSettings.isAssistantPanelVisible ?? true) } } : null), []);
   
@@ -819,7 +821,10 @@ const App: React.FC = () => {
             onSaveFile={handleSaveFile} onLoadFile={handleLoadFile} onExportToMd={handleExportToMd}
             isAssistantVoiceEnabled={appState.editorSettings.assistantVoiceEnabled} onToggleAssistantVoice={handleToggleAssistantVoice}
             onClearText={handleClearText} isApiKeySet={isApiKeySet} onSetDevApiKey={() => setIsApiKeyModalOpen(true)}
-            onTogglePreview={handleTogglePreview} isPreviewActive={isMarkdownPreviewActive}
+          onTogglePreview={handleTogglePreview} isPreviewActive={isMarkdownPreviewActive}
+          currentTabContent={activeTab.textContent}
+          onToggleSplitPreview={handleToggleSplitPreview}
+          isSplitPreview={isSplitPreviewActive}
             onOpenSettings={() => setIsSettingsModalOpen(true)} isMusicPlaying={appState.editorSettings.isMusicPlaying}
             onToggleMusic={handleToggleMusic} hasMusicUrl={!!appState.editorSettings.backgroundMusicUrl}
             isAssistantPanelVisible={appState.editorSettings.isAssistantPanelVisible ?? true}
@@ -843,15 +848,30 @@ const App: React.FC = () => {
       <main className={`flex-grow flex items-center justify-center overflow-hidden relative transition-all duration-300 ease-in-out ${isFullScreenMode ? 'p-0' : 'p-4 md:p-6 lg:p-8'}`} style={{ color: 'var(--theme-text-primary)'}}>
         <div className={`flex w-full h-full ${isFullScreenMode ? '' : 'max-w-screen-2xl'}`}> {/* Max width adjusted */}
             <div className={mainContentAreaClasses} style={{backgroundColor: 'var(--theme-bg-content-area)' }}>
-                {isMarkdownPreviewActive 
-                    ? <MarkdownPreview markdownText={activeTab.textContent} /> 
-                    : <TextEditor 
-                        ref={textEditorRef} 
-                        value={activeTab.textContent} 
+                {isSplitPreviewActive ? (
+                  <div className="flex w-full h-full">
+                    <div className="w-1/2 h-full">
+                      <TextEditor
+                        ref={textEditorRef}
+                        value={activeTab.textContent}
                         onChange={handleActiveTabContentChange}
-                        onContextMenu={handleTextEditorContextMenu} 
+                        onContextMenu={handleTextEditorContextMenu}
                       />
-                }
+                    </div>
+                    <div className="w-1/2 h-full border-l border-gray-200 dark:border-gray-700">
+                      <MarkdownPreview markdownText={activeTab.textContent} />
+                    </div>
+                  </div>
+                ) : (
+                  isMarkdownPreviewActive
+                    ? <MarkdownPreview markdownText={activeTab.textContent} />
+                    : <TextEditor
+                        ref={textEditorRef}
+                        value={activeTab.textContent}
+                        onChange={handleActiveTabContentChange}
+                        onContextMenu={handleTextEditorContextMenu}
+                      />
+                )}
             </div>
             
             {(appState.editorSettings.isAssistantPanelVisible ?? true) && !isFullScreenMode && (
